@@ -1,0 +1,2351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PersonaTrace</title>
+    
+    <!-- favicon -->
+    <link rel="icon" type="image/png" href="/static/images/personatrace-logo-only-transparent.png">
+
+    <!-- App CSS -->
+    <link rel="stylesheet" href="/static/css/app.css">
+
+    <!-- Bootstrap CSS -->
+    <link href="/static/css/vendor/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- vis.js -->
+    <script src="/static/js/vendor/vis-network.min.js"></script>
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="/static/fonts/bootstrap-icons.css">
+    
+    <!-- jQuery (must be loaded before Select2) -->
+    <script src="/static/js/vendor/jquery-3.6.0.min.js"></script>
+    
+    <!-- Select2 CSS and JS -->
+    <link href="/static/css/vendor/select2.min.css" rel="stylesheet" />
+    <link href="/static/css/vendor/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <script src="/static/js/vendor/select2.min.js"></script>
+    
+    <!-- Bootstrap Bundle with Popper (must be after jQuery) -->
+    <script src="/static/js/vendor/bootstrap.bundle.min.js"></script>    
+    
+    <!-- tippy.js for custom tooltips -->
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css" />
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Top Navigation Bar -->
+        <div class="top-nav">
+            <div class="nav-left app-logo-container" style="margin-right: 30px;">
+                <img alt="PersonaTrace" class="app-logo" data-light-src="/static/images/personatrace-logo-only-transparent.png" data-dark-src="/static/images/personatrace-logo-only-transparent.png">
+                <span>PersonaTrace</span>
+            </div>
+            <button class="controls-toggle btn btn-outline-secondary" id="controlsToggle">
+                <i class="bi bi-layout-sidebar"></i>
+                <span>Hide Controls</span>
+            </button>
+            <div class="graph-stats">
+                <button class="theme-toggle btn btn-outline-secondary" id="themeToggle" title="Toggle dark mode">
+                    <i class="bi bi-moon-fill"></i>
+                    <span>Dark Mode</span>
+                </button>
+                <span id="vertexCount">Vertices: 0</span>
+                <span id="edgeCount">Edges: 0</span>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Controls Column -->
+            <div class="controls-column" id="controlsColumn">
+                <!-- Controls Content -->
+                <div class="controls-content">
+                    <!-- Search Section -->
+                    <div class="card filters-card">
+                        <div class="card-header bg-secondary-subtle" role="button" data-bs-toggle="collapse" data-bs-target="#searchCollapse" aria-expanded="true" aria-controls="searchCollapse" style="cursor: pointer;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0 text-primary-emphasis">Search</h5>
+                                <div class="chevron-wrapper d-flex align-items-center">
+                                    <i class="bi bi-chevron-down"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collapse show" id="searchCollapse">
+                            <div class="card-body">
+                                <!-- Search Loading Overlay -->
+                                <div class="loading-overlay" id="searchLoadingOverlay" style="display: none;">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span class="loading-text">Searching Graph...</span>
+                                </div>
+                                <div class="filter-section" style="margin-bottom: 0px;">
+                                    <div class="filter-title mb-3 text-center">Search Configuration</div>
+                                    
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <label for="searchTypeSelect" class="form-label">Vertex Type</label>
+                                            <select class="form-select" id="searchTypeSelect">
+                                                <option value="">All Types</option>
+                                                <!-- Vertex types will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <label for="searchOperatorSelect" class="form-label">Equality</label>
+                                            <select class="form-select" id="searchOperatorSelect">
+                                                <option value="equals" selected>Equals</option>
+                                                <option value="contains">Contains</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <label for="searchValue" class="form-label">Value</label>
+                                            <input type="text" class="form-control" id="searchValue" placeholder="Enter search term...">
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-4">
+                                            <label for="numHopsVertexSearch" class="form-label">Max Hops</label>
+                                            <input type="number" class="form-control" id="numHopsVertexSearch" placeholder="Hops" value="2" min="1">
+                                        </div>
+                                        <div class="col-8">
+                                            <label class="form-label">&nbsp;</label>
+                                            <button class="btn btn-primary w-100" id="searchButton">
+                                                Search Graph
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Horizontal Rule -->
+                                <hr>
+
+                                <!-- Show all overlaps Section -->
+                                <div class="filter-section">
+                                    <div class="filter-title mb-3 text-center">Vertices with >= n connections to observations and out from there x hops</div>
+                                    <div class="row mb-3">
+                                        <!-- Number of connections the vertices must have -->
+                                        <div class="col-12">
+                                            <label for="numConnectionsShowAllOverlaps" class="form-label">Number of Connections</label>
+                                            <input type="number" class="form-control" id="numConnectionsShowAllOverlaps" placeholder="Number of Connections" value="3" min="1">
+                                        </div>
+                                        <!-- Number of hops from those vertices -->
+                                        <div class="col-12">
+                                            <label for="numHopsShowAllOverlaps" class="form-label">Number of Hops from those vertices</label>
+                                            <input type="number" class="form-control" id="numHopsShowAllOverlaps" placeholder="Number of Hops" value="2" min="1">
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-danger w-100" id="showAllOverlapsButton">Show Overlaps</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Focus Node Section -->
+                    <div class="card filters-card">
+                        <div class="card-header bg-primary-subtle" role="button" data-bs-toggle="collapse" data-bs-target="#focusCollapse" aria-expanded="false" aria-controls="focusCollapse" style="cursor: pointer;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0 text-primary-emphasis">Focus Node</h5>
+                                <div class="chevron-wrapper d-flex align-items-center">
+                                    <i class="bi bi-chevron-down"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collapse" id="focusCollapse">
+                            <!-- Focus Loading Overlay -->
+                            <div class="loading-overlay" id="focusLoadingOverlay">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="loading-text">Updating Focus View...</span>
+                            </div>
+                            <div class="filter-section">
+                                <select class="form-select mb-2" id="nodeSelect">
+                                    <option value="">Select a node...</option>
+                                </select>
+                                <div class="filter-title mt-2">Distance (Hops)</div>
+                                <input type="range" class="form-range distance-slider" id="distanceSlider" 
+                                    min="1" max="5" value="2" step="1">
+                                <div class="distance-value mb-2" id="distanceValue">2 hops</div>
+                                <button class="btn btn-secondary w-100" id="resetFocus">
+                                    Reset Focus
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filters Section -->
+                    <div class="card filters-card">
+                        <div class="card-header bg-success-subtle" role="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false" aria-controls="filtersCollapse" style="cursor: pointer;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0 text-success-emphasis">Graph Filters</h5>
+                                <div class="chevron-wrapper d-flex align-items-center">
+                                    <i class="bi bi-chevron-down"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collapse" id="filtersCollapse">
+                            <div class="card-body">
+                                <!-- Filters Loading Overlay -->
+                                <div class="loading-overlay" id="filtersLoadingOverlay">
+                                    <div class="spinner-border text-success" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span class="loading-text">Loading Filters...</span>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-6">
+                                        <button class="btn btn-outline-danger w-100" id="hideAllButton">
+                                            Hide All
+                                        </button>
+                                    </div>
+                                    <div class="col-6">
+                                        <button class="btn btn-outline-success w-100" id="resetFiltersButton">
+                                            Reset Filters
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Vertex Type Filters -->
+                                <div class="filter-section">
+                                    <div class="filter-title">Vertex Types</div>
+                                    <div class="vertex-filters">
+                                        <!-- Vertex filters will be populated dynamically -->
+                                    </div>
+                                </div>
+
+                                <!-- Edge Type Filters -->
+                                <div class="filter-section">
+                                    <div class="filter-title">Edge Types</div>
+                                    <div class="edge-filters">
+                                        <!-- Edge filters will be populated dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trace Section -->
+                    <div class="card filters-card">
+                        <div class="card-header bg-info-subtle" role="button" data-bs-toggle="collapse" data-bs-target="#traceCollapse" aria-expanded="false" aria-controls="traceCollapse" style="cursor: pointer;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0 text-info-emphasis">Find Paths</h5>
+                                <div class="chevron-wrapper d-flex align-items-center">
+                                    <i class="bi bi-chevron-down"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collapse" id="traceCollapse">
+                            <div class="card-body">
+                                <!-- Trace Loading Overlay -->
+                                <div class="loading-overlay" id="traceLoadingOverlay">
+                                    <div class="spinner-border text-info" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span class="loading-text">Loading Trace Options...</span>
+                                </div>
+                                <div class="filter-section">
+                                    <div class="filter-title">From Vertex</div>
+                                    <select class="form-select mb-2" id="traceFromSelect">
+                                        <option value="">Select starting vertex...</option>
+                                    </select>
+                                    
+                                    <div class="filter-title mt-2">To Vertex</div>
+                                    <select class="form-select mb-2" id="traceToSelect">
+                                        <option value="">Select target vertex...</option>
+                                    </select>
+
+                                    <div class="filter-title mt-2">Max Depth</div>
+                                    <input type="number" class="form-control mb-2" id="traceMaxDepth" 
+                                        placeholder="Max Depth" value="5" min="1" max="20">
+
+                                    <button class="btn btn-info w-100 mt-2" id="findPathsButton">
+                                        Find Paths
+                                    </button>
+                                    <button class="btn btn-secondary w-100 mt-2" id="resetTraceButton">
+                                        Reset Trace
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Overlaps Section -->
+                    <div class="card filters-card">
+                        <div class="card-header bg-warning-subtle" role="button" data-bs-toggle="collapse" data-bs-target="#overlapsCollapse" aria-expanded="false" aria-controls="overlapsCollapse" style="cursor: pointer;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0 text-warning-emphasis">Overlaps</h5>
+                                <div class="chevron-wrapper d-flex align-items-center">
+                                    <i class="bi bi-chevron-down"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collapse" id="overlapsCollapse">
+                            <div class="card-body">
+                                <!-- Overlaps Loading Overlay -->
+                                <div class="loading-overlay" id="overlapsLoadingOverlay">
+                                    <div class="spinner-border text-warning" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <span class="loading-text">Loading Overlaps...</span>
+                                </div>
+                                <div id="overlapsContent">
+                                    <!-- Overlaps will be populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graph Column -->
+            <div class="graph-column">
+                <div id="graph-container"></div>
+                <!-- Add error alert container -->
+                <div id="errorAlert" class="alert alert-danger alert-dismissible fade" role="alert" style="position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 1000; display: none; min-width: 400px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <span id="errorMessage"></span>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                <button class="btn btn-secondary floating-button" id="resetView">
+                    <i class="bi bi-arrow-repeat"></i> Reset View
+                </button>
+                <button class="btn btn-warning floating-button" id="showOverlaps">
+                    <i class="bi bi-intersect"></i> Show Overlaps
+                </button>
+                <button class="btn btn-primary floating-button" id="fitToView">
+                    <i class="bi bi-arrows-fullscreen"></i> Fit to View
+                </button>
+                <!-- Graph Loading Overlay -->
+                <div class="loading-overlay" id="graphLoadingOverlay">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <span class="loading-text">Loading Graph Data...</span>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Graph data will be loaded from API and stored globally
+            let graphData = null;
+
+            // Loading state management
+            function showLoading() {
+                document.getElementById('graphLoadingOverlay').style.display = 'flex';
+                document.getElementById('filtersLoadingOverlay').style.display = 'flex';
+                document.getElementById('traceLoadingOverlay').style.display = 'flex';
+                document.getElementById('focusLoadingOverlay').style.display = 'flex';
+                document.getElementById('overlapsLoadingOverlay').style.display = 'flex';
+            }
+
+            function hideLoading() {
+                document.getElementById('graphLoadingOverlay').style.display = 'none';
+                document.getElementById('filtersLoadingOverlay').style.display = 'none';
+                document.getElementById('traceLoadingOverlay').style.display = 'none';
+                document.getElementById('focusLoadingOverlay').style.display = 'none';
+                document.getElementById('overlapsLoadingOverlay').style.display = 'none';
+            }
+
+            function showLoadingFor(overlayId) {
+                document.getElementById(overlayId).style.display = 'flex';
+            }
+
+            function hideLoadingFor(overlayId) {
+                document.getElementById(overlayId).style.display = 'none';
+            }
+
+            // Hide all loading overlays by default
+            document.addEventListener('DOMContentLoaded', () => {
+                hideLoading();
+            });
+
+            // Define default colors and styles
+            const defaultStyles = {
+                vertex: {
+                    background: '#D3D3D3',  // Light Gray
+                    border: '#808080'       // Gray
+                },
+                edge: {
+                    color: '#808080',       // Gray
+                    width: 2,
+                    dashes: false
+                }
+            };
+
+            // Graph configuration
+            const options = {
+                nodes: {
+                    font: {
+                        size: 25
+                    },
+                    size: 30,
+                    shadow: true,
+                    scaling: {
+                        min: 30,
+                        max: 30
+                    },
+                    fixed: {
+                        x: false,
+                        y: false
+                    },
+                    color: {
+                        hover: {
+                            background: '#FFFFFF',
+                            border: '#007BFF'
+                        },
+                        highlight: {
+                            background: '#FFFFFF',
+                            border: '#007BFF'
+                        }
+                    }
+                    
+                },
+                edges: {
+                    width: 2,
+                    shadow: true,
+                    smooth: {
+                        type: 'continuous'
+                    },
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: 1,
+                            type: 'arrow'
+                        }
+                    },
+                    font: {
+                        size: 0  // Hide edge labels
+                    }
+                },
+                interaction: {
+                    hover: true,  // Re-enable hover detection for events
+                    tooltipDelay: 100
+                },
+                groups: {},  // Will be populated from metadata
+                physics: {
+                    enabled: true,
+                    stabilization: {
+                        enabled: true,
+                        iterations: 1000,
+                        updateInterval: 25
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -30000000, // Reduced repulsion to allow more overlap
+                        springLength: .01, // Extremely short springs to bring nodes as close as possible
+                        springConstant: 0.1, // Increased spring constant for even faster stabilization
+                        damping: 1.0, // Maximum damping value allowed by vis.js
+                        avoidOverlap: 0, // Allow complete overlap
+                        centralGravity: 0.01 // Stronger central gravity to pull nodes together
+                    },
+                    timestep: 0.5, // The physics simulation is discrete. This means we take a step in time, calculate the forces, move the nodes and take another step. If you increase this number the steps will be too large and the network can get unstable. If you see a lot of jittery movement in the network, you may want to reduce this value a little.
+                    adaptiveTimestep: true  // If this is enabled, the timestep will intelligently be adapted (only during the stabilization stage if stabilization is enabled!) to greatly decrease stabilization times. The timestep configured above is taken as the minimum timestep
+                }
+            };
+
+            // Create DataSets (will be populated when data loads)
+            const nodes = new vis.DataSet([]);
+            const edges = new vis.DataSet([]);
+
+            // Create the network
+            const container = document.getElementById('graph-container');
+            const networkData = {
+                nodes: nodes,
+                edges: edges
+            };
+            
+            const network = new vis.Network(container, networkData, options);
+
+            // Add stabilization event listeners for auto-fit
+            let autoFitEnabled = true;
+            let stabilizationTimeout = null;
+            
+            network.on('stabilizationProgress', function(params) {
+                // Optional: Show progress if needed
+                console.log('Stabilization progress:', params.iterations, '/', params.total);
+            });
+            
+            network.on('stabilizationIterationsDone', function() {
+                console.log('Stabilization complete! Auto-fit enabled:', autoFitEnabled);
+                // Auto-fit to view once stabilization is complete
+                if (autoFitEnabled) {
+                    console.log('Performing auto-fit after stabilization');
+                    // Clear any existing timeout
+                    if (stabilizationTimeout) {
+                        clearTimeout(stabilizationTimeout);
+                    }
+                    
+                    // Add a small delay to ensure the layout is fully settled
+                    stabilizationTimeout = setTimeout(() => {
+                        console.log('Executing auto-fit with 50ms delay');
+                        network.fit({
+                            animation: {
+                                duration: 800,
+                                easingFunction: "easeOutQuart"
+                            },
+                            scale: 0.1  // Zoom out to show more of the graph
+                        });
+                        stabilizationTimeout = null;
+                    }, 50);
+                } else {
+                    console.log('Auto-fit disabled, skipping fit operation');
+                }
+            });
+            
+            // Function to temporarily disable auto-fit (useful during user interactions)
+            function disableAutoFit(duration = 2000) {
+                autoFitEnabled = false;
+                setTimeout(() => {
+                    autoFitEnabled = true;
+                }, duration);
+            }
+
+            // Function to show error in Bootstrap alert
+            function showError(error, type) {
+                const alertEl = document.getElementById('errorAlert');
+                const messageEl = document.getElementById('errorMessage');
+                
+                // Check if error alert elements exist
+                if (!alertEl || !messageEl) {
+                    console.error('Error alert elements not found:', error);
+                    // Fallback to console and alert
+                    console.error('Error:', error);
+                    alert(error);
+                    return;
+                }
+                
+                // Set the error message
+                let message = error;
+                if (type === 'No initial vertices found') {
+                    message = 'No matching vertices found for your search criteria. Try adjusting your search terms.';
+                }
+                
+                messageEl.textContent = message;
+                
+                // Show the alert
+                alertEl.style.display = 'block';
+                alertEl.classList.add('show');
+                
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    const bsAlert = new bootstrap.Alert(alertEl);
+                    bsAlert.close();
+                }, 5000);
+            }
+
+            // Function to load vertex types from the API
+            async function loadVertexTypes() {
+                try {
+                    // console.log('Loading vertex types...');
+                    const response = await fetch('/api/vertex-types');
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        console.error('Error loading vertex types:', data.error);
+                        return;
+                    }
+                    
+                    // console.log('Vertex types loaded:', data.vertex_types);
+                    
+                    // Populate the search type dropdown
+                    const searchTypeSelect = document.getElementById('searchTypeSelect');
+                    if (searchTypeSelect) {
+                        // Keep the "All Types" option
+                        searchTypeSelect.innerHTML = '<option value="">All Types</option>';
+                        
+                        // Add each vertex type as an option
+                        data.vertex_types.forEach(vertexType => {
+                            const option = document.createElement('option');
+                            option.value = vertexType;
+                            let displayText = vertexType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            if (vertexType === 'ip_address') {
+                                displayText = 'IP Address';
+                            }
+                            option.textContent = displayText;
+                            searchTypeSelect.appendChild(option);
+                        });
+                    }
+                    
+                } catch (error) {
+                    console.error('Error loading vertex types:', error);
+                }
+            }
+
+            // Function to load graph data from the API
+            async function loadGraphData(searchParams = null) {
+                const isUserAction = searchParams && (
+                    searchParams.get('search') || 
+                    searchParams.get('showOverlaps') === 'true'
+                );
+                
+                if (isUserAction) {
+                    showLoading();
+                    // Disable auto-fit during user-initiated operations (shorter duration)
+                    disableAutoFit(1000);
+                }
+                
+                try {
+                    // console.log('Loading graph data...');
+                    let url = '/api/graph-data';
+                    if (searchParams) {
+                        url += `?${searchParams.toString()}`;
+                    }
+                    // Add fake_data parameter from template variable if no other params
+                    url += `&fake_data={{ fake_data|tojson }}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    // Check for error response
+                    if (data.error) {
+                        if (data.type === 'No initial vertices found') {
+                            // Show a more user-friendly message for no search results
+                            showError('No matching vertices found for your search criteria. Try adjusting your search terms or increasing the number of hops.', 'No initial vertices found');
+                        } else {
+                            showError(data.error, data.type);
+                        }
+                        return null;
+                    }
+                    
+                    // console.log('Graph data loaded:', data);
+                    
+                    // Store the data globally
+                    graphData = data;
+                    
+                    // Clear existing nodes and edges
+                    nodes.clear();
+                    edges.clear();
+                    
+                    // Check if we have any vertices to process
+                    if (!data.vertices || data.vertices.length === 0) {
+                        // Update stats for empty graph
+                        document.getElementById('vertexCount').textContent = `Vertices: 0`;
+                        document.getElementById('edgeCount').textContent = `Edges: 0`;
+                        return data;
+                    }
+                    
+                    // Process and add nodes
+                    const processedNodes = data.vertices.map(node => {
+                        const nodeStyle = data.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                        const isOverlapping = node.num_observations > 1 && 
+                                           node.group !== 'source' && 
+                                           node.group !== 'observation_of_identity';
+                        
+                        // Check if this is the searched-for node
+                        const isSearchedNode = searchParams && searchParams.get('searchType') === 'vertexValue' && 
+                                             searchParams.get('searchValue') && 
+                                             node.label.toLowerCase().includes(searchParams.get('searchValue').toLowerCase());
+                        
+                        // Add observation count to label for overlapping nodes
+                        let displayLabel = node.label;
+                        if (isOverlapping) {
+                            // Remove any existing observation count (e.g., '\n(2 obs)' or ' (2 obs)')
+                            displayLabel = displayLabel.replace(/(\n| )?\(\d+ obs\)/g, '');
+                            displayLabel = `${displayLabel}\n(${node.num_observations} obs)`;
+                        }
+
+                        return {
+                            ...node,
+                            label: displayLabel,
+                            color: {
+                                background: isSearchedNode ? '#FFD700' : nodeStyle.background, // Gold background for searched node
+                                border: isSearchedNode ? '#FF4500' : (isOverlapping ? '#FFA500' : nodeStyle.border), // OrangeRed border for searched node
+                                highlight: {
+                                    background: '#FFFFFF',  // Consistent white background on hover
+                                    border: '#007BFF'       // Blue border to make it stand out
+                                },
+                                hover: {
+                                    background: '#FFFFFF',
+                                    border: '#007BFF'
+                                }
+                            },
+                            size: isSearchedNode ? 60 : (isOverlapping ? 45 : 30), // Larger size for searched node
+                            borderWidth: isSearchedNode ? 5 : (isOverlapping ? 3 : 1), // Thicker border for searched node
+                            font: {
+                                color: '#000000',
+                                size: isSearchedNode ? 35 : (isOverlapping ? 30 : 25), // Larger font for searched node
+                                bold: isSearchedNode || isOverlapping
+                            },
+                            shadow: isSearchedNode ? {
+                                enabled: true,
+                                color: 'rgba(255, 69, 0, 0.4)', // OrangeRed shadow for searched node
+                                size: 15,
+                                x: 0,
+                                y: 0
+                            } : (isOverlapping ? {
+                                enabled: true,
+                                color: 'rgba(255, 165, 0, 0.3)',
+                                size: 10,
+                                x: 0,
+                                y: 0
+                            } : {
+                                enabled: false
+                            })
+                        };
+                    });
+
+                    // Process and add edges
+                    const processedEdges = data.edges.map(edge => {
+                        const edgeStyle = data.metadata.edgeColors[edge.label] || defaultStyles.edge;
+                        const fromNode = data.vertices.find(n => n.id === edge.from);
+                        const toNode = data.vertices.find(n => n.id === edge.to);
+                        const isConnectedToOverlap = (fromNode && fromNode.num_observations > 1 && fromNode.group !== 'source' && fromNode.group !== 'observation_of_identity') ||
+                                                   (toNode && toNode.num_observations > 1 && toNode.group !== 'source' && toNode.group !== 'observation_of_identity');
+                        
+                        return {
+                            ...edge,
+                            color: edgeStyle.color,
+                            width: isConnectedToOverlap ? edgeStyle.width * 1.5 : edgeStyle.width,
+                            dashes: edgeStyle.dashes,
+                            shadow: isConnectedToOverlap ? {
+                                enabled: true,
+                                color: 'rgba(255, 165, 0, 0.2)'
+                            } : {
+                                enabled: false
+                            }
+                        };
+                    });
+                    
+                    // Add processed data to network
+                    nodes.add(processedNodes);
+                    edges.add(processedEdges);
+                    
+                    // Add clustering effects
+                    clusterSameTypeNodes();
+                    
+                    // Update stats
+                    document.getElementById('vertexCount').textContent = `Vertices: ${nodes.length}`;
+                    document.getElementById('edgeCount').textContent = `Edges: ${edges.length}`;
+                    
+                    // Initialize filters and selectors
+                    initializeFilters();
+                    populateVertexSelectors();
+
+                    // Find and display overlapping nodes
+                    const overlappingNodes = nodes.get().filter(node => {
+                        return node.num_observations > 1 && 
+                               node.group !== 'source' && 
+                               node.group !== 'observation_of_identity';
+                    });
+
+                    if (overlappingNodes.length > 0) {
+                        // Organize and display overlap data
+                        const groupedData = organizeOverlapData(overlappingNodes);
+                        displayOverlapData(groupedData);
+
+                        // Show the overlaps section if it's not already visible
+                        const overlapsCollapse = document.getElementById('overlapsCollapse');
+                        if (overlapsCollapse) {
+                            try {
+                                const bsCollapse = bootstrap.Collapse.getInstance(overlapsCollapse) || 
+                                                 new bootstrap.Collapse(overlapsCollapse, { toggle: false });
+                                if (bsCollapse) {
+                                    bsCollapse.show();
+                                }
+                            } catch (error) {
+                                console.warn('Error showing overlaps collapse:', error);
+                            }
+                        }
+                    } else {
+                        // Clear overlaps content if no overlaps found
+                        const overlapsContent = document.getElementById('overlapsContent');
+                        if (overlapsContent) {
+                            overlapsContent.innerHTML = '<div class="text-muted p-3">No overlaps found in current view.</div>';
+                        }
+                    }
+                    
+                    // Ensure physics is enabled and trigger stabilization
+                    network.setOptions({ physics: { enabled: true } });
+                    
+                    // Fallback auto-fit if stabilization doesn't fire within 3 seconds
+                    setTimeout(() => {
+                        if (autoFitEnabled) {
+                            console.log('Fallback auto-fit triggered (stabilization may not have fired)');
+                            network.fit({
+                                animation: {
+                                    duration: 800,
+                                    easingFunction: "easeOutQuart"
+                                },
+                                scale: 0.1
+                            });
+                        }
+                    }, 1000);
+                    
+                    // Let stabilization auto-fit handle the fitting instead of manual fit
+                    // network.fit({
+                    //     animation: {
+                    //         duration: 1000,
+                    //         easingFunction: "easeOutQuart"
+                    //     },
+                    //     scale: 0.1  // This will make the view more zoomed out
+                    // });
+                    
+                    return data;
+                } catch (error) {
+                    console.error('Error loading graph data:', error);
+                    alert(error.message || 'Failed to load graph data. Please try again.');
+                    throw error;
+                } finally {
+                    if (isUserAction) {
+                        hideLoading();
+                        // Re-enable auto-fit after search operations complete
+                        setTimeout(() => {
+                            autoFitEnabled = true;
+                        }, 500);
+                    }
+                }
+            }
+
+            // Function to initialize the graph
+            async function initializeGraph() {
+                try {
+                    // Initialize with empty graph, no loading state
+                    await loadGraphData(null);
+                } catch (error) {
+                    console.error('Error initializing graph:', error);
+                    throw error;
+                }
+            }
+
+            // Populate all vertex selectors
+            function populateVertexSelectors() {
+                const nodeSelect = document.getElementById('nodeSelect');
+                const traceFromSelect = document.getElementById('traceFromSelect');
+                const traceToSelect = document.getElementById('traceToSelect');
+                const selectors = [nodeSelect, traceFromSelect, traceToSelect];
+                
+                // Sort nodes by type and name
+                const sortedNodes = [...nodes.get()].sort((a, b) => {
+                    if (a.group !== b.group) {
+                        return String(a.group).localeCompare(String(b.group));
+                    }
+                    return String(a.label).localeCompare(String(b.label));
+                });
+
+                // Clear existing options (except the default first option)
+                selectors.forEach(selector => {
+                    while (selector.options.length > 1) {
+                        selector.remove(1);
+                    }
+                });
+
+                // Add all nodes as flat options (no optgroup), sorted alphabetically by label
+                selectors.forEach(selector => {
+                    // Sort nodes alphabetically by label
+                    const sortedFlatNodes = [...sortedNodes].sort((a, b) => String(a.label).localeCompare(String(b.label)));
+                    sortedFlatNodes.forEach(node => {
+                        const option = document.createElement('option');
+                        option.value = node.id;
+                        option.text = node.label;
+                        option.setAttribute('data-type', node.group);
+                        selector.appendChild(option);
+                    });
+
+                    // Initialize Select2 with search
+                    $(selector).select2({
+                        theme: 'bootstrap-5',
+                        placeholder: selector.querySelector('option').text,
+                        allowClear: true,
+                        width: '100%',
+                        templateResult: formatOption,
+                        templateSelection: formatOption
+                    });
+                });
+            }
+
+            // Format the option display
+            function formatOption(option) {
+                if (!option.id) {
+                    return option.text;
+                }
+                
+                const type = $(option.element).data('type');
+                const $option = $(
+                    '<span>' + option.text + 
+                    (type ? ' <small class="text-muted">(' + type + ')</small>' : '') +
+                    '</span>'
+                );
+                return $option;
+            }
+
+            // Find all paths between two vertices
+            function findAllPaths(startId, endId, maxDepth = 10) {
+                const paths = [];
+                const visited = new Set();
+                
+                function dfs(currentId, targetId, path, depth = 0) {
+                    if (depth > maxDepth) return;
+                    if (currentId === targetId) {
+                        paths.push([...path]);
+                        return;
+                    }
+                    
+                    // Get all edges connected to current node (both directions)
+                    const connectedEdges = edges.get().filter(edge => 
+                        edge.from === currentId || edge.to === currentId
+                    );
+                    
+                    for (const edge of connectedEdges) {
+                        const nextNodeId = edge.from === currentId ? edge.to : edge.from;
+                        
+                        // Skip if we've already visited this node in the current path
+                        if (path.includes(nextNodeId)) continue;
+                        
+                        // Create a unique path key that includes the edge and direction
+                        const pathKey = `${path.join(',')}-${edge.id}-${nextNodeId}`;
+                        if (visited.has(pathKey)) continue;
+                        visited.add(pathKey);
+                        
+                        path.push(nextNodeId);
+                        dfs(nextNodeId, targetId, path, depth + 1);
+                        path.pop();
+                    }
+                }
+                
+                // Start the search from the start node
+                dfs(startId, endId, [startId]);
+                
+                console.log(`Found ${paths.length} paths between ${startId} and ${endId}`);
+                paths.forEach((path, index) => {
+                    console.log(`Path ${index + 1}:`, path.join(' -> '));
+                });
+                
+                return paths;
+            }
+
+            // Highlight paths in the graph
+            function highlightPaths(paths) {
+                // Reset all nodes to backend color and default appearance
+                nodes.get().forEach(node => {
+                    const nodeColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                    nodes.update({
+                        id: node.id,
+                        color: {
+                            background: nodeColor.background,
+                            border: node.is_shared ? '#FFA500' : nodeColor.border,
+                            highlight: {
+                                background: '#FFFFFF',  // Consistent white background on hover
+                                border: '#007BFF'       // Blue border to make it stand out
+                            },
+                            hover: {
+                                background: '#FFFFFF',
+                                border: '#007BFF'
+                            }
+                        },
+                        size: node.is_shared ? 45 : 30,
+                        borderWidth: node.is_shared ? 3 : 1,
+                        font: { bold: false, size: 25 }
+                    });
+                });
+                // Reset all edges to backend color and default appearance
+                edges.get().forEach(edge => {
+                    const edgeStyle = graphData.metadata.edgeColors[edge.label] || defaultStyles.edge;
+                    const fromNode = nodes.get(edge.from);
+                    const toNode = nodes.get(edge.to);
+                    const isConnectedToShared = (fromNode && fromNode.is_shared === true) || (toNode && toNode.is_shared === true);
+                    edges.update({
+                        id: edge.id,
+                        color: edgeStyle.color,
+                        width: isConnectedToShared ? edgeStyle.width * 1.5 : edgeStyle.width,
+                        dashes: edgeStyle.dashes,
+                        shadow: false
+                    });
+                });
+                // Highlight the paths
+                paths.forEach(path => {
+                    // Highlight nodes
+                    path.forEach(nodeId => {
+                        const node = nodes.get(nodeId);
+                        const nodeColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                        nodes.update({
+                            id: nodeId,
+                            color: {
+                                background: nodeColor.background,
+                                border: '#FF0000',
+                                highlight: {
+                                    background: '#FFFFFF',  // Consistent white background on hover
+                                    border: '#007BFF'       // Blue border to make it stand out
+                                },
+                                hover: {
+                                    background: '#FFFFFF',
+                                    border: '#007BFF'
+                                }
+                            },
+                            size: 45,
+                            borderWidth: 4,
+                            font: { bold: true, size: 28 }
+                        });
+                    });
+                    // Highlight edges
+                    for (let i = 0; i < path.length - 1; i++) {
+                        const fromId = path[i];
+                        const toId = path[i + 1];
+                        edges.get().forEach(edge => {
+                            if ((edge.from === fromId && edge.to === toId) || (edge.to === fromId && edge.from === toId)) {
+                                edges.update({
+                                    id: edge.id,
+                                    color: '#FF0000',
+                                    width: 4,
+                                    shadow: true
+                                });
+                            }
+                        });
+                    }
+                });
+                network.fit({
+                    animation: {
+                        duration: 1000,
+                        easingFunction: "easeOutQuart"
+                    },
+                    scale: 0.1  // This will make the view even more zoomed out
+                });
+            }
+
+            function getConnectedNodes(startNodeId, maxDistance) {
+                const connectedNodes = new Set([startNodeId]);
+                const nodesToProcess = [[startNodeId, 0]];
+                const processedPairs = new Set();
+
+                while (nodesToProcess.length > 0) {
+                    const [currentNodeId, distance] = nodesToProcess.shift();
+                    
+                    if (distance >= maxDistance) continue;
+
+                    edges.get().forEach(edge => {
+                        const pairKey = `${currentNodeId}-${edge.label}-${edge.from === currentNodeId ? edge.to : edge.from}`;
+                        
+                        if (processedPairs.has(pairKey)) return;
+                        
+                        if (edge.from === currentNodeId || edge.to === currentNodeId) {
+                            const nextNodeId = edge.from === currentNodeId ? edge.to : edge.from;
+                            processedPairs.add(pairKey);
+                            
+                            if (!connectedNodes.has(nextNodeId)) {
+                                connectedNodes.add(nextNodeId);
+                                nodesToProcess.push([nextNodeId, distance + 1]);
+                            }
+                        }
+                    });
+                }
+
+                return connectedNodes;
+            }
+
+            function togglePhysics(enable) {
+                if (enable) {
+                    network.setOptions({ physics: options.physics });
+                } else {
+                    network.setOptions({ physics: { enabled: false } });
+                }
+            }
+
+            // Add error handling and retries to focus updates
+            async function updateFocusedSubgraph() {
+                const selectedNodeId = nodeSelect.value;
+                const isUserAction = selectedNodeId !== '';
+                
+                if (isUserAction) {
+                    showLoadingFor('focusLoadingOverlay');
+                    // Disable auto-fit during focus changes (shorter duration)
+                    disableAutoFit(1000);
+                }
+                
+                try {
+                    const distance = parseInt(distanceSlider.value);
+
+                    // Disable physics during updates
+                    togglePhysics(false);
+
+                    if (!selectedNodeId) {
+                        nodes.get().forEach(node => {
+                            const isVisible = shouldNodeBeVisible(node);
+                            const nodeColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                            nodes.update({ 
+                                id: node.id, 
+                                hidden: !isVisible,
+                                color: {
+                                    background: nodeColor.background,
+                                    border: node.is_shared ? '#FFA500' : nodeColor.border,
+                                    highlight: {
+                                        background: '#FFFFFF',  // Consistent white background on hover
+                                        border: '#007BFF'       // Blue border to make it stand out
+                                    },
+                                    hover: {
+                                        background: '#FFFFFF',
+                                        border: '#007BFF'
+                                    }
+                                }
+                            });
+                        });
+
+                        edges.get().forEach(edge => {
+                            const isVisible = shouldEdgeBeVisible(edge);
+                            const isClusteringEdge = edge.label === 'clustering_edge';
+                            edges.update({ id: edge.id, hidden: isClusteringEdge || !isVisible });
+                        });
+                        
+                        network.fit({
+                            animation: {
+                                duration: 1000,
+                                easingFunction: "easeOutQuart"
+                            },
+                            scale: 0.1  // This will make the view even more zoomed out
+                        });
+                        
+                        // Re-enable physics after a short delay
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        togglePhysics(true);
+                        return;
+                    }
+
+                    // Stop physics to prevent spinning
+                    togglePhysics(false);
+
+                    const connectedNodes = getConnectedNodes(selectedNodeId, distance);
+
+                    // Update visibility and color for all nodes
+                    nodes.get().forEach(node => {
+                        const isVisible = connectedNodes.has(node.id) && shouldNodeBeVisible(node);
+                        const nodeColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                        const isFocusNode = node.id === selectedNodeId;
+                        
+                        nodes.update({ 
+                            id: node.id, 
+                            hidden: !isVisible,
+                            color: {
+                                background: isFocusNode ? '#FFD700' : nodeColor.background, // Gold color for focus node
+                                border: isFocusNode ? '#FF4500' : (node.is_shared ? '#FFA500' : nodeColor.border), // OrangeRed border for focus node
+                                highlight: {
+                                    background: '#FFFFFF',  // Consistent white background on hover
+                                    border: '#007BFF'       // Blue border to make it stand out
+                                },
+                                hover: {
+                                    background: '#FFFFFF',
+                                    border: '#007BFF'
+                                }
+                            },
+                            size: isFocusNode ? 50 : (node.is_shared ? 45 : 30), // Make focus node larger
+                            borderWidth: isFocusNode ? 4 : (node.is_shared ? 3 : 1), // Thicker border for focus node
+                            font: {
+                                size: isFocusNode ? 30 : 25,
+                                bold: isFocusNode
+                            }
+                        });
+                    });
+
+                    edges.get().forEach(edge => {
+                        const isVisible = (connectedNodes.has(edge.from) && connectedNodes.has(edge.to)) && 
+                                        shouldEdgeBeVisible(edge);
+                        const isClusteringEdge = edge.label === 'clustering_edge';
+                        edges.update({ id: edge.id, hidden: isClusteringEdge || !isVisible });
+                    });
+
+                    network.fit({
+                        animation: {
+                            duration: 1000,
+                            easingFunction: "easeOutQuart"
+                        },
+                        scale: 0.1  // This will make the view even more zoomed out
+                    });
+                    
+                    // Re-enable physics after a short delay
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    togglePhysics(true);
+                } catch (error) {
+                    console.error('Error updating focus:', error);
+                    alert('Failed to update focus view. Please try again.');
+                } finally {
+                    if (isUserAction) {
+                        hideLoadingFor('focusLoadingOverlay');
+                    }
+                }
+            }
+
+            function shouldNodeBeVisible(node) {
+                const checkbox = document.getElementById(node.group);
+                return checkbox ? checkbox.checked : true;
+            }
+
+            function shouldEdgeBeVisible(edge) {
+                const checkbox = document.getElementById(edge.label);
+                return checkbox ? checkbox.checked : true;
+            }
+
+            function updateEdgeVisibility() {
+                const selectedNodeId = nodeSelect.value;
+                
+                // Don't update focus if we're just filtering
+                const isFiltering = document.activeElement && 
+                                  (document.activeElement.type === 'checkbox' || 
+                                   document.activeElement.id === 'hideAllButton' || 
+                                   document.activeElement.id === 'resetFiltersButton');
+                
+                if (selectedNodeId && !isFiltering) {
+                    updateFocusedSubgraph();
+                    return;
+                }
+
+                // Get all visible nodes
+                const visibleNodes = new Set();
+                nodes.get().forEach(node => {
+                    if (!node.hidden) {
+                        visibleNodes.add(node.id);
+                    }
+                });
+
+                // Update edges based on filter checkboxes and visible nodes
+                edges.get().forEach(edge => {
+                    const isTypeVisible = document.getElementById(edge.label)?.checked ?? true;
+                    const fromNodeVisible = visibleNodes.has(edge.from);
+                    const toNodeVisible = visibleNodes.has(edge.to);
+                    const areNodesVisible = fromNodeVisible && toNodeVisible;
+                    const edgeStyle = graphData.metadata.edgeColors[edge.label] || defaultStyles.edge;
+
+                    // Check if connected to a shared node
+                    const fromNode = nodes.get(edge.from);
+                    const toNode = nodes.get(edge.to);
+                    const isConnectedToShared = (fromNode && fromNode.is_shared === true) || 
+                                              (toNode && toNode.is_shared === true);
+
+                    // Always keep clustering edges hidden
+                    const isClusteringEdge = edge.label === 'clustering_edge';
+                    const shouldHide = isClusteringEdge || !isTypeVisible || !areNodesVisible;
+
+                    edges.update({ 
+                        id: edge.id, 
+                        hidden: shouldHide,
+                        color: edgeStyle.color,
+                        width: isConnectedToShared ? edgeStyle.width * 1.5 : edgeStyle.width,
+                        dashes: edgeStyle.dashes
+                    });
+                });
+            }
+
+            function updateVertexVisibility() {
+                const selectedNodeId = nodeSelect.value;
+                
+                if (selectedNodeId) {
+                    updateFocusedSubgraph();
+                    return;
+                }
+
+                // Update all nodes based on filter checkboxes
+                nodes.get().forEach(node => {
+                    const isTypeVisible = document.getElementById(node.group)?.checked ?? true;
+                    const metadataColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                    const isShared = node.is_shared === true;
+                    
+                    nodes.update({ 
+                        id: node.id, 
+                        hidden: !isTypeVisible,
+                        color: {
+                            background: metadataColor.background,
+                            border: isShared ? '#FFA500' : metadataColor.border,
+                            highlight: {
+                                background: '#FFFFFF',  // Consistent white background on hover
+                                border: '#007BFF'       // Blue border to make it stand out
+                            },
+                            hover: {
+                                background: '#FFFFFF',
+                                border: '#007BFF'
+                            }
+                        }
+                    });
+                });
+
+                // Update edge visibility accordingly
+                updateEdgeVisibility();
+            }
+
+            // Function to create invisible edges for custom clustering
+            function createInvisibleEdge(fromNodeId, toNodeId, options = {}) {
+                const defaultOptions = {
+                    length: 800,
+                    physics: true,
+                    hidden: true,
+                    smooth: { type: 'continuous' },
+                    width: 0,
+                    label: 'clustering_edge'  // Special label to identify clustering edges
+                };
+                
+                const edgeOptions = { ...defaultOptions, ...options };
+                
+                edges.add({
+                    from: fromNodeId,
+                    to: toNodeId,
+                    color: { opacity: 0 },
+                    ...edgeOptions
+                });
+            }
+
+            // Add clustering by node type after nodes are added
+            function clusterSameTypeNodes() {
+                // Don't cluster if we're in overlaps view, filtering, or resetting view
+                const showOverlapsButton = document.getElementById('showOverlaps');
+                const isOverlapsView = showOverlapsButton && showOverlapsButton.style.display === 'none';
+                const isFiltering = document.activeElement && document.activeElement.type === 'checkbox';
+                const isResettingView = document.activeElement && document.activeElement.id === 'resetView';
+                
+                if (isOverlapsView || isFiltering || isResettingView) {
+                    return;
+                }
+                
+                const typeGroups = {};
+                
+                // Group nodes by type
+                nodes.get().forEach(node => {
+                    if (!typeGroups[node.group]) {
+                        typeGroups[node.group] = [];
+                    }
+                    typeGroups[node.group].push(node);
+                });
+                
+                // For each group type, add invisible edges between same-type nodes for clustering
+                Object.entries(typeGroups).forEach(([type, nodeList]) => {
+                    if (nodeList.length > 1) {
+                        // Create invisible edges between all nodes of the same type
+                        for (let i = 0; i < nodeList.length; i++) {
+                            for (let j = i + 1; j < nodeList.length; j++) {
+                                const nodeA = nodeList[i];
+                                const nodeB = nodeList[j];
+                                
+                                // Add invisible edge for clustering
+                                createInvisibleEdge(nodeA.id, nodeB.id);
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Function to format tooltips for observation_of_identity nodes
+            function formatObservationTooltip(properties) {
+                const sections = [];
+                const flattenedProps = {};
+
+                // Function to flatten nested objects with dot notation
+                function flattenObject(obj, prefix = '') {
+                    for (const key in obj) {
+                        const value = obj[key];
+                        const newKey = prefix ? `${prefix}.${key}` : key;
+                        
+                        if (Array.isArray(value)) {
+                            // Handle arrays of objects specially
+                            if (value.length > 0 && typeof value[0] === 'object') {
+                                value.forEach((item, index) => {
+                                    flattenObject(item, `${newKey}[${index}]`);
+                                });
+                            } else {
+                                flattenedProps[newKey] = value.join(', ');
+                            }
+                        } else if (value !== null && typeof value === 'object') {
+                            flattenObject(value, newKey);
+                        } else {
+                            flattenedProps[newKey] = value;
+                        }
+                    }
+                }
+
+                // Flatten all properties
+                flattenObject(properties);
+
+                // Sort all flattened properties alphabetically
+                const sortedKeys = Object.keys(flattenedProps).sort();
+
+                // Group properties by their top-level category
+                const groupedProps = {};
+                sortedKeys.forEach(key => {
+                    const topLevel = key.split('.')[0];
+                    if (!groupedProps[topLevel]) {
+                        groupedProps[topLevel] = [];
+                    }
+                    groupedProps[topLevel].push([key, flattenedProps[key]]);
+                });
+
+                // Add each group of properties
+                Object.keys(groupedProps).sort().forEach(group => {
+                    sections.push(`\n${group}:`);
+                    groupedProps[group].forEach(([key, value]) => {
+                        // If it's a nested property, indent it
+                        const indent = key.includes('.') ? '    ' : '  ';
+                        // For nested properties, only show the part after the first dot
+                        const displayKey = key.includes('.') ? key.substring(key.indexOf('.') + 1) : key;
+                        sections.push(`${indent}${displayKey}: ${value}`);
+                    });
+                });
+
+                return sections.join('\n');
+            }
+
+            // Add function to organize overlap data
+            function organizeOverlapData(overlappingNodes) {
+                // Group nodes by type
+                const groupedByType = {};
+                overlappingNodes.forEach(node => {
+                    if (node.group !== 'source' && node.group !== 'observation_of_identity') {
+                        if (!groupedByType[node.group]) {
+                            groupedByType[node.group] = [];
+                        }
+                        // Find connected source nodes
+                        const connectedSources = new Set();
+                        edges.get().forEach(edge => {
+                            if ((edge.from === node.id || edge.to === node.id) && !edge.hidden) {
+                                const otherNode = nodes.get(edge.from === node.id ? edge.to : edge.from);
+                                if (otherNode && otherNode.group === 'source') {
+                                    connectedSources.add(otherNode.label);
+                                }
+                            }
+                        });
+                        
+                        groupedByType[node.group].push({
+                            id: node.id,
+                            label: node.label,
+                            numObservations: node.num_observations || 0,
+                            sources: Array.from(connectedSources).sort()
+                        });
+                    }
+                });
+
+                // Sort each group's nodes by number of observations (descending) then by label
+                Object.keys(groupedByType).forEach(type => {
+                    groupedByType[type].sort((a, b) => {
+                        if (b.numObservations !== a.numObservations) {
+                            return b.numObservations - a.numObservations;
+                        }
+                        return a.label.localeCompare(b.label);
+                    });
+                });
+
+                return groupedByType;
+            }
+
+            // Add function to display overlap data
+            function displayOverlapData(groupedData) {
+                const overlapsContent = document.getElementById('overlapsContent');
+                overlapsContent.innerHTML = '';
+
+                // Sort types alphabetically
+                const sortedTypes = Object.keys(groupedData).sort();
+
+                sortedTypes.forEach(type => {
+                    const typeSection = document.createElement('div');
+                    typeSection.className = 'mb-4';
+
+                    // Add type header with count
+                    const typeHeader = document.createElement('div');
+                    typeHeader.className = 'overlap-type-header';
+                    typeHeader.textContent = `${type} (${groupedData[type].length})`;
+                    typeSection.appendChild(typeHeader);
+
+                    // Add each overlapping node in this type
+                    groupedData[type].forEach(node => {
+                        const nodeDiv = document.createElement('div');
+                        nodeDiv.className = 'overlap-item mb-2';
+
+                        // Content container
+                        const contentDiv = document.createElement('div');
+                        contentDiv.className = 'overlap-item-content';
+
+                        // Node label and observation count
+                        const labelDiv = document.createElement('div');
+                        labelDiv.className = 'fw-bold';
+                        labelDiv.textContent = `${node.label} (${node.numObservations} obs)`;
+                        contentDiv.appendChild(labelDiv);
+
+                        // Sources list
+                        if (node.sources.length > 0) {
+                            const sourcesDiv = document.createElement('div');
+                            sourcesDiv.className = 'small';
+                            sourcesDiv.textContent = `Sources: ${node.sources.join(', ')}`;
+                            contentDiv.appendChild(sourcesDiv);
+                        }
+
+                        nodeDiv.appendChild(contentDiv);
+
+                        // Add focus button
+                        const focusButton = document.createElement('button');
+                        focusButton.className = 'btn btn-outline-primary btn-focus';
+                        focusButton.innerHTML = '<i class="bi bi-zoom-in"></i> Focus';
+                        focusButton.onclick = () => {
+                            // Set focus node and update view
+                            const nodeSelect = document.getElementById('nodeSelect');
+                            nodeSelect.value = node.id;
+                            $(nodeSelect).trigger('change'); // Trigger Select2 update
+                            
+                            // Open focus collapse if closed
+                            const focusCollapse = document.getElementById('focusCollapse');
+                            if (focusCollapse) {
+                                try {
+                                    const bsCollapse = bootstrap.Collapse.getInstance(focusCollapse) || 
+                                                     new bootstrap.Collapse(focusCollapse, { toggle: false });
+                                    if (bsCollapse) {
+                                        bsCollapse.show();
+                                    }
+                                } catch (error) {
+                                    console.warn('Error showing focus collapse:', error);
+                                }
+                            }
+                        };
+                        nodeDiv.appendChild(focusButton);
+
+                        typeSection.appendChild(nodeDiv);
+                    });
+
+                    overlapsContent.appendChild(typeSection);
+                });
+            }
+
+            // Get control elements and set up event listeners after DOM is loaded
+            document.addEventListener('DOMContentLoaded', async () => {
+                // Load vertex types first
+                await loadVertexTypes();
+                
+                // Initialize controls visibility
+                const controlsColumn = document.getElementById('controlsColumn');
+                const controlsToggle = document.getElementById('controlsToggle');
+                
+                // Ensure controls are visible by default
+                if (controlsColumn) {
+                    controlsColumn.classList.remove('collapsed');
+                }
+
+                // Set up toggle functionality
+                if (controlsToggle && controlsColumn) {
+                    controlsToggle.addEventListener('click', () => {
+                        controlsColumn.classList.toggle('collapsed');
+                        
+                        // Update toggle text and icon
+                        const isCollapsed = controlsColumn.classList.contains('collapsed');
+                        const toggleText = controlsToggle.querySelector('span');
+                        if (toggleText) {
+                            toggleText.textContent = isCollapsed ? 'Show Controls' : 'Hide Controls';
+                        }
+                        
+                        // Trigger graph resize after animation
+                        setTimeout(() => {
+                            if (window.network) {
+                                window.network.fit({
+                                    animation: {
+                                        duration: 1000,
+                                        easingFunction: "easeOutQuart"
+                                    },
+                                    scale: 0.1  // This will make the view even more zoomed out
+                                });
+                            }
+                        }, 300);
+                    });
+
+                    // Add keyboard shortcut (Alt + C)
+                    document.addEventListener('keydown', (e) => {
+                        if (e.altKey && e.key.toLowerCase() === 'c') {
+                            controlsToggle.click();
+                        }
+                    });
+                }
+
+                // console.log('DOM loaded, initializing graph...');
+                
+                // Get control elements with error checking
+                const elements = {
+                    nodeSelect: document.getElementById('nodeSelect'),
+                    traceFromSelect: document.getElementById('traceFromSelect'),
+                    traceToSelect: document.getElementById('traceToSelect'),
+                    distanceSlider: document.getElementById('distanceSlider'),
+                    distanceValue: document.getElementById('distanceValue'),
+                    resetFocusButton: document.getElementById('resetFocus'),
+                    fitToViewButton: document.getElementById('fitToView'),
+                    findPathsButton: document.getElementById('findPathsButton'),
+                    resetTraceButton: document.getElementById('resetTraceButton'),
+                    hideAllButton: document.getElementById('hideAllButton'),
+                    resetFiltersButton: document.getElementById('resetFiltersButton'),
+                    focusCollapse: document.getElementById('focusCollapse'),
+                    filtersCollapse: document.getElementById('filtersCollapse'),
+                    traceCollapse: document.getElementById('traceCollapse'),
+                    overlapsCollapse: document.getElementById('overlapsCollapse')
+                };
+
+                // Debug log to check which elements are missing
+                Object.entries(elements).forEach(([key, element]) => {
+                    if (!element) {
+                        console.error(`Missing element: ${key}`);
+                    }
+                });
+
+                // Initialize all collapsible sections to be collapsed by default
+                const collapsibleSections = ['focusCollapse', 'filtersCollapse', 'traceCollapse', 'overlapsCollapse'];
+                
+                collapsibleSections.forEach(sectionId => {
+                    const section = document.getElementById(sectionId);
+                    if (section) {
+                        try {
+                            // Remove any 'show' class that might be present
+                            section.classList.remove('show');
+                            
+                            // Initialize Bootstrap collapse
+                            const bsCollapse = new bootstrap.Collapse(section, {
+                                toggle: false
+                            });
+                            
+                            // Update header chevron
+                            const header = section.previousElementSibling;
+                            if (header) {
+                                header.setAttribute('aria-expanded', 'false');
+                                const chevron = header.querySelector('i.bi-chevron-down');
+                            }
+                        } catch (error) {
+                            console.warn(`Error initializing collapse for ${sectionId}:`, error);
+                        }
+                    }
+                });
+
+                // Add collapse event listeners for chevron rotation
+                collapsibleSections.forEach(sectionId => {
+                    const section = document.getElementById(sectionId);
+                    if (section) {
+                        try {
+                            section.addEventListener('show.bs.collapse', function() {
+                                const chevron = this.previousElementSibling.querySelector('i.bi-chevron-down');
+                            });
+                            
+                            section.addEventListener('hide.bs.collapse', function() {
+                                const chevron = this.previousElementSibling.querySelector('i.bi-chevron-down');
+                            });
+                        } catch (error) {
+                            console.warn(`Error setting up collapse events for ${sectionId}:`, error);
+                        }
+                    }
+                });
+
+                // Initialize distance value display
+                if (elements.distanceValue && elements.distanceSlider) {
+                    // Update the displayed value immediately while sliding
+                    elements.distanceSlider.addEventListener('input', (e) => {
+                        if (elements.distanceValue) {
+                            elements.distanceValue.textContent = `${e.target.value} hops`;
+                        }
+                    });
+
+                    // Only update the graph when the slider stops (on release)
+                    elements.distanceSlider.addEventListener('change', (e) => {
+                        updateFocusedSubgraph();
+                    });
+                }
+
+                // Only set up event listeners for elements that exist
+                if (elements.nodeSelect) {
+                    elements.nodeSelect.addEventListener('change', updateFocusedSubgraph);
+                }
+
+                if (elements.resetFocusButton) {
+                    elements.resetFocusButton.addEventListener('click', () => {
+                        if (elements.nodeSelect) {
+                            elements.nodeSelect.value = '';
+                            updateFocusedSubgraph();
+                        }
+                    });
+                }
+
+                if (elements.fitToViewButton) {
+                    elements.fitToViewButton.addEventListener('click', () => {
+                        // Disable auto-fit temporarily to prevent conflicts (shorter duration)
+                        disableAutoFit(1000);
+                        
+                        // console.log('Fitting graph to view');
+                        network.fit({
+                            animation: {
+                                duration: 1000,
+                                easingFunction: "easeOutQuart"
+                            },
+                            scale: 0.5,  // This will make the view more zoomed out
+                            padding: {
+                                top: 50,
+                                bottom: 50,
+                                left: 50,
+                                right: 50
+                            }
+                        });
+                    });
+                }
+
+                if (elements.findPathsButton) {
+                    elements.findPathsButton.addEventListener('click', async () => {
+                        if (!elements.traceFromSelect || !elements.traceToSelect) {
+                            console.error('Trace select elements not found');
+                            return;
+                        }
+                        const fromId = elements.traceFromSelect.value;
+                        const toId = elements.traceToSelect.value;
+                        
+                        if (!fromId || !toId) {
+                            alert('Please select both vertices for tracing');
+                            return;
+                        }
+                        
+                        console.log('Tracing from:', fromId, 'to:', toId);
+                        
+                        try {
+                            // Get the max depth from the UI input
+                            const maxDepth = document.getElementById('traceMaxDepth').value || 5;
+                            
+                            // Call the Neo4j API to find paths
+                            const response = await fetch(`/api/find-paths?fromVertexId=${encodeURIComponent(fromId)}&toVertexId=${encodeURIComponent(toId)}&maxDepth=${maxDepth}`);
+                            const data = await response.json();
+                            
+                            if (data.error) {
+                                console.error('API error:', data.error);
+                                alert(`Error finding paths: ${data.error}`);
+                                return;
+                            }
+                            
+                            console.log(`Found ${data.count} paths via Neo4j API`);
+                            
+                            if (data.count === 0) {
+                                alert('No paths found between selected vertices');
+                                return;
+                            }
+                            
+                            // Convert the API response to the format expected by highlightPaths
+                            const paths = data.paths.map(path => path.nodes);
+                            
+                            // Highlight the paths
+                            highlightPaths(paths);
+                            
+                        } catch (error) {
+                            console.error('Error calling path finding API:', error);
+                            alert('Failed to find paths. Please try again.');
+                        }
+                    });
+                }
+
+                // Add hide all and reset filters functionality
+                if (elements.hideAllButton) {
+                    elements.hideAllButton.addEventListener('click', () => {
+                        // console.log('Hiding all nodes and edges...');
+                        // Uncheck all checkboxes
+                        document.querySelectorAll('.edge-filters input[type="checkbox"], .vertex-filters input[type="checkbox"]')
+                            .forEach(checkbox => {
+                                checkbox.checked = false;
+                            });
+                        
+                        // Update visibility
+                        updateEdgeVisibility();
+                        updateVertexVisibility();
+                    });
+                }
+                
+                if (elements.resetFiltersButton) {
+                    elements.resetFiltersButton.addEventListener('click', () => {
+                        // console.log('Resetting all filters...');
+                        // Check all checkboxes
+                        document.querySelectorAll('.edge-filters input[type="checkbox"], .vertex-filters input[type="checkbox"]')
+                            .forEach(checkbox => {
+                                checkbox.checked = true;
+                            });
+                        
+                        // Update visibility
+                        updateEdgeVisibility();
+                        updateVertexVisibility();
+                    });
+                }
+
+                // Add Reset View functionality
+                const resetViewButton = document.getElementById('resetView');
+                resetViewButton.addEventListener('click', () => {
+                    // Show all nodes and reset their visibility
+                    nodes.get().forEach(node => {
+                        const metadataColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                        nodes.update({ 
+                            id: node.id, 
+                            hidden: false,
+                            size: node.is_shared ? 45 : 30,
+                            borderWidth: node.is_shared ? 3 : 1,
+                            color: {
+                                background: metadataColor.background,
+                                border: node.is_shared ? '#FFA500' : metadataColor.border,
+                                highlight: {
+                                    background: '#FFFFFF',  // Consistent white background on hover
+                                    border: '#007BFF'       // Blue border to make it stand out
+                                },
+                                hover: {
+                                    background: '#FFFFFF',
+                                    border: '#007BFF'
+                                }
+                            },
+                            font: {
+                                color: '#000000',
+                                size: node.is_shared ? 30 : 25,
+                                bold: node.is_shared
+                            }
+                        });
+                    });
+
+                    // Show all edges
+                    edges.get().forEach(edge => {
+                        const edgeStyle = graphData.metadata.edgeColors[edge.label] || defaultStyles.edge;
+                        const isClusteringEdge = edge.label === 'clustering_edge';
+                        
+                        edges.update({ 
+                            id: edge.id, 
+                            hidden: isClusteringEdge, // Keep clustering edges hidden
+                            color: edgeStyle.color,
+                            width: edgeStyle.width,
+                            dashes: edgeStyle.dashes
+                        });
+                    });
+
+                    // Reset all filters to checked
+                    document.querySelectorAll('.edge-filters input[type="checkbox"], .vertex-filters input[type="checkbox"]')
+                        .forEach(checkbox => {
+                            checkbox.checked = true;
+                        });
+
+                    // Fit to view with a zoom out factor
+                    network.fit({
+                        animation: {
+                            duration: 1000,
+                            easingFunction: "easeOutQuart"
+                        },
+                        scale: 0.1  // This will make the view even more zoomed out
+                    });
+                });
+
+                // Show Overlaps functionality
+                const showOverlapsButton = document.getElementById('showOverlaps');
+                showOverlapsButton.addEventListener('click', async () => {
+                    showLoadingFor('overlapsLoadingOverlay');
+                    try {
+                        // Check if we need to load data first
+                        if (nodes.get().length === 0) {
+                            // console.log('No nodes found, loading graph data first...');
+                            await loadGraphData();
+                            
+                            // Verify data was loaded
+                            if (nodes.get().length === 0) {
+                                throw new Error('Failed to load graph data');
+                            }
+                        }
+                        
+                        // Clean up any existing invisible edges before processing overlaps
+                        const existingEdges = edges.get();
+                        const invisibleEdges = existingEdges.filter(edge => 
+                            edge.color && edge.color.opacity === 0 && edge.hidden === true
+                        );
+                        invisibleEdges.forEach(edge => {
+                            edges.remove(edge.id);
+                        });
+                        
+                        // console.log('Starting overlaps processing...');
+                        // console.log('Current nodes:', nodes.get());
+                        
+                        // Find all nodes that have overlaps
+                        const overlappingNodes = nodes.get().filter(node => {
+                            return node.num_observations > 1 && 
+                                   node.group !== 'source' && 
+                                   node.group !== 'observation_of_identity';
+                        });
+                        
+                        // console.log('Found overlapping nodes:', overlappingNodes);
+
+                        // Get all nodes within 2 hops of overlapping nodes
+                        const connectedNodes = new Set();
+                        // console.log('Finding connected nodes...');
+                        overlappingNodes.forEach(node => {
+                            // console.log(`Getting connected nodes for ${node.id}`);
+                            const nodesWithinTwoHops = getConnectedNodes(node.id, 2);
+                            // console.log(`Found ${nodesWithinTwoHops.size} connected nodes for ${node.id}`);
+                            nodesWithinTwoHops.forEach(nodeId => connectedNodes.add(nodeId));
+                        });
+
+                        // Update node visibility and styling
+                        // console.log('Total connected nodes:', connectedNodes.size);
+
+                        // Update visibility to show only overlap-related nodes
+                        nodes.get().forEach(node => {
+                            const isInOverlapView = connectedNodes.has(node.id);
+                            const metadataColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                            const isOverlapping = node.num_observations > 1;
+                            
+                            // Update the label to include observation count for overlapping nodes
+                            let displayLabel = node.label;
+                            if (isOverlapping) {
+                                // Remove any existing observation count (e.g., '\n(2 obs)' or ' (2 obs)')
+                                displayLabel = displayLabel.replace(/(\n| )?\(\d+ obs\)/g, '');
+                                displayLabel = `${displayLabel}\n(${node.num_observations} obs)`;
+                            }
+                            
+                            nodes.update({ 
+                                id: node.id, 
+                                hidden: !isInOverlapView,
+                                label: displayLabel,
+                                color: {
+                                    background: metadataColor.background,
+                                    border: isOverlapping ? '#FFA500' : metadataColor.border,
+                                    highlight: {
+                                        background: '#FFFFFF',  // Consistent white background on hover
+                                        border: '#007BFF'       // Blue border to make it stand out
+                                    },
+                                    hover: {
+                                        background: '#FFFFFF',
+                                        border: '#007BFF'
+                                    }
+                                },
+                                size: isOverlapping ? 45 : 30,
+                                borderWidth: isOverlapping ? 3 : 1,
+                                font: {
+                                    size: isOverlapping ? 30 : 25,
+                                    bold: isOverlapping
+                                },
+                                shadow: isOverlapping ? {
+                                    enabled: true,
+                                    color: 'rgba(255, 165, 0, 0.3)',
+                                    size: 10,
+                                    x: 0,
+                                    y: 0
+                                } : {
+                                    enabled: false
+                                }
+                            });
+                        });
+
+                        // Update edge visibility and styling
+                        edges.get().forEach(edge => {
+                            const fromNode = nodes.get(edge.from);
+                            const toNode = nodes.get(edge.to);
+                            const areNodesVisible = !fromNode.hidden && !toNode.hidden;
+                            const isInOverlapView = connectedNodes.has(edge.from) && connectedNodes.has(edge.to);
+                            const edgeStyle = graphData.metadata.edgeColors[edge.label] || defaultStyles.edge;
+                            const isClusteringEdge = edge.label === 'clustering_edge';
+                            
+                            // Make edges connected to overlapping nodes stand out more
+                            const isConnectedToOverlap = (fromNode.num_observations > 1 || toNode.num_observations > 1) &&
+                                                       (fromNode.group !== 'source' && toNode.group !== 'source') &&
+                                                       (fromNode.group !== 'observation_of_identity' && toNode.group !== 'observation_of_identity');
+                            
+                            edges.update({ 
+                                id: edge.id, 
+                                hidden: isClusteringEdge || !isInOverlapView || !areNodesVisible,
+                                color: edgeStyle.color,
+                                width: isConnectedToOverlap ? edgeStyle.width * 1.5 : edgeStyle.width,
+                                dashes: edgeStyle.dashes,
+                                shadow: isConnectedToOverlap ? {
+                                    enabled: true,
+                                    color: 'rgba(255, 165, 0, 0.2)'
+                                } : {
+                                    enabled: false
+                                }
+                            });
+                        });
+
+                        network.fit({
+                            animation: {
+                                duration: 1000,
+                                easingFunction: "easeOutQuart"
+                            },
+                            scale: 0.1  // Scale way out to show more of the graph
+                        });
+                    } catch (error) {
+                        console.error('Error processing overlaps:', error);
+                        alert(error.message || 'Failed to process overlaps. Please try again.');
+                    } finally {
+                        hideLoadingFor('overlapsLoadingOverlay');
+                    }
+                });
+
+                // Search button click handler
+                const searchButton = document.getElementById('searchButton');
+                searchButton.addEventListener('click', async () => {
+                    // Vertex value search
+                    const vertexType = document.getElementById('searchTypeSelect').value;
+                    const searchOperator = document.getElementById('searchOperatorSelect').value;
+                    const searchValue = document.getElementById('searchValue').value.trim();
+                    const numHopsVertexSearch = document.getElementById('numHopsVertexSearch').value;
+
+                    if (!searchValue) {
+                        alert('Please enter a search term');
+                        return;
+                    }
+                    
+                    // Show loading on all relevant sections
+                    showLoadingFor('graphLoadingOverlay');
+                    showLoadingFor('focusLoadingOverlay');
+                    showLoadingFor('filtersLoadingOverlay');
+                    showLoadingFor('traceLoadingOverlay');
+                    showLoadingFor('overlapsLoadingOverlay');
+                    
+                    try {
+                        const searchParams = new URLSearchParams({
+                            searchType: 'vertexValue',
+                            vertexType: vertexType,
+                            searchOperator: searchOperator,
+                            searchValue: searchValue,
+                            numHopsVertexSearch: numHopsVertexSearch,
+                        });
+                        
+                        await loadGraphData(searchParams);
+                    } catch (error) {
+                        console.error('Search failed:', error);
+                    } finally {
+                        // Hide loading on all sections
+                        hideLoadingFor('graphLoadingOverlay');
+                        hideLoadingFor('focusLoadingOverlay');
+                        hideLoadingFor('filtersLoadingOverlay');
+                        hideLoadingFor('traceLoadingOverlay');
+                        hideLoadingFor('overlapsLoadingOverlay');
+                    }
+                });
+
+                // Show All Overlaps button click handler
+                const showAllOverlapsButton = document.getElementById('showAllOverlapsButton');
+                showAllOverlapsButton.addEventListener('click', async () => {
+                    // Show all overlaps search
+                    const numConnectionsShowAllOverlaps = document.getElementById('numConnectionsShowAllOverlaps').value;
+                    const numHopsShowAllOverlaps = document.getElementById('numHopsShowAllOverlaps').value;
+
+                    // Show loading on all relevant sections
+                    showLoadingFor('graphLoadingOverlay');
+                    showLoadingFor('focusLoadingOverlay');
+                    showLoadingFor('filtersLoadingOverlay');
+                    showLoadingFor('traceLoadingOverlay');
+                    showLoadingFor('overlapsLoadingOverlay');
+                    
+                    try {
+                        const searchParams = new URLSearchParams({
+                            searchType: 'showAllOverlaps',
+                            numConnectionsShowAllOverlaps: numConnectionsShowAllOverlaps,
+                            numHopsShowAllOverlaps: numHopsShowAllOverlaps
+                        });
+                        
+                        await loadGraphData(searchParams);
+                    } catch (error) {
+                        console.error('Failed to show all overlaps:', error);
+                    } finally {
+                        // Hide loading on all sections
+                        hideLoadingFor('graphLoadingOverlay');
+                        hideLoadingFor('focusLoadingOverlay');
+                        hideLoadingFor('filtersLoadingOverlay');
+                        hideLoadingFor('traceLoadingOverlay');
+                        hideLoadingFor('overlapsLoadingOverlay');
+                    }
+                });
+
+                // Handle Select2 changes for focus node
+                $('#nodeSelect').on('change', function() {
+                    updateFocusedSubgraph();
+                });
+
+                if (elements.resetTraceButton) {
+                    elements.resetTraceButton.addEventListener('click', () => {
+                        // Restore all nodes to backend color and default appearance
+                        nodes.get().forEach(node => {
+                            const nodeColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                            nodes.update({
+                                id: node.id,
+                                color: {
+                                    background: nodeColor.background,
+                                    border: node.is_shared ? '#FFA500' : nodeColor.border,
+                                    highlight: {
+                                        background: '#FFFFFF',  // Consistent white background on hover
+                                        border: '#007BFF'       // Blue border to make it stand out
+                                    },
+                                    hover: {
+                                        background: '#FFFFFF',
+                                        border: '#007BFF'
+                                    }
+                                },
+                                size: node.is_shared ? 45 : 30,
+                                borderWidth: node.is_shared ? 3 : 1,
+                                font: { bold: false, size: 25 }
+                            });
+                        });
+                        // Restore all edges to backend color and default appearance
+                        edges.get().forEach(edge => {
+                            const edgeStyle = graphData.metadata.edgeColors[edge.label] || defaultStyles.edge;
+                            const fromNode = nodes.get(edge.from);
+                            const toNode = nodes.get(edge.to);
+                            const isConnectedToShared = (fromNode && fromNode.is_shared === true) || (toNode && toNode.is_shared === true);
+                            edges.update({
+                                id: edge.id,
+                                color: edgeStyle.color,
+                                width: isConnectedToShared ? edgeStyle.width * 1.5 : edgeStyle.width,
+                                dashes: edgeStyle.dashes,
+                                shadow: false
+                            });
+                        });
+                        // Optionally, clear any trace path selection UI here
+                        network.fit({
+                            animation: {
+                                duration: 1000,
+                                easingFunction: "easeOutQuart"
+                            },
+                            scale: 0.1  // This will make the view even more zoomed out
+                        });
+                    });
+                }
+
+                // After the network is created
+                let currentTippy = null;
+                let hoveredNodeId = null;
+                
+                network.on('hoverNode', function(params) {
+                    const node = nodes.get(params.node);
+                    hoveredNodeId = params.node;
+                    
+                    // console.log('Hovering over node:', params.node, 'with group:', node.group);
+                    
+                    // Manually set hover colors for consistent behavior
+                    const hoverColors = {
+                        background: '#FFFFFF',  // Consistent white background on hover
+                        border: '#007BFF',      // Blue border to make it stand out
+                        highlight: {
+                            background: '#FFFFFF',  // Ensure highlight is also white
+                            border: '#007BFF'       // Ensure highlight border is blue
+                        },
+                        hover: {
+                            background: '#FFFFFF',
+                            border: '#007BFF'
+                        }
+                    };
+                    
+                    // Apply hover colors immediately
+                    nodes.update({
+                        id: params.node,
+                        color: hoverColors
+                    });
+                    
+                    // Force the update again after a short delay to override any vis.js styling
+                    setTimeout(() => {
+                        if (hoveredNodeId === params.node) {
+                            nodes.update({
+                                id: params.node,
+                                color: hoverColors
+                            });
+                        }
+                    }, 10);
+                    
+                    let tooltipContent = '';
+                    if (node && node.tooltip) {
+                        tooltipContent = node.tooltip;
+                    } else if (node && node.group === 'observation_of_identity') {
+                        tooltipContent = formatObservationTooltip(node.properties);
+                    }
+                    if (tooltipContent) {
+                        // Destroy previous tippy if exists
+                        if (currentTippy) {
+                            currentTippy.destroy();
+                        }
+                        currentTippy = tippy(network.body.container, {
+                            content: `<pre style="white-space: pre-wrap; max-width: 400px;">${tooltipContent}</pre>`,
+                            allowHTML: true,
+                            placement: 'right',
+                            showOnCreate: true,
+                            interactive: true,
+                            maxWidth: 400,
+                            theme: 'light-border',
+                        });
+                    }
+                });
+                
+                network.on('blurNode', function(params) {
+                    // console.log('Blurring node:', params.node);
+                    
+                    // Restore original colors when hover ends
+                    if (hoveredNodeId === params.node) {
+                        const node = nodes.get(params.node);
+                        const nodeStyle = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                        const isOverlapping = node.num_observations > 1 && 
+                                           node.group !== 'source' && 
+                                           node.group !== 'observation_of_identity';
+                        
+                        // console.log('Restoring colors for node:', params.node, 'group:', node.group, 'style:', nodeStyle);
+                        
+                        nodes.update({
+                            id: params.node,
+                            color: {
+                                background: nodeStyle.background,
+                                border: isOverlapping ? '#FFA500' : nodeStyle.border,
+                                highlight: {
+                                    background: '#FFFFFF',  // Keep consistent hover colors
+                                    border: '#007BFF'
+                                },
+                                hover: {
+                                    background: '#FFFFFF',
+                                    border: '#007BFF'
+                                }
+                            }
+                        });
+                        hoveredNodeId = null;
+                    }
+                    
+                    if (currentTippy) {
+                        currentTippy.destroy();
+                        currentTippy = null;
+                    }
+                });
+
+                // Theme toggle functionality
+                const themeToggle = document.getElementById('themeToggle');
+                const themeIcon = themeToggle.querySelector('i');
+                const themeText = themeToggle.querySelector('span');
+                
+                // Check for saved theme preference and initialize logo
+                const savedTheme = localStorage.getItem('theme');
+                const logo = document.querySelector('.app-logo');
+                
+                if (savedTheme === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    themeIcon.classList.replace('bi-moon-fill', 'bi-sun-fill');
+                    themeText.textContent = 'Light Mode';
+                    if (logo) {
+                        logo.src = logo.dataset.darkSrc;
+                    }
+                } else if (logo) {
+                    logo.src = logo.dataset.lightSrc;
+                }
+
+                themeToggle.addEventListener('click', () => {
+                    const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+                    
+                    if (isDarkMode) {
+                        document.documentElement.removeAttribute('data-theme');
+                        themeIcon.classList.replace('bi-sun-fill', 'bi-moon-fill');
+                        themeText.textContent = 'Light Mode';
+                        localStorage.setItem('theme', 'light');
+                        if (logo) {
+                            logo.src = logo.dataset.lightSrc;
+                        }
+                    } else {
+                        document.documentElement.setAttribute('data-theme', 'dark');
+                        themeIcon.classList.replace('bi-moon-fill', 'bi-sun-fill');
+                        themeText.textContent = 'Dark Mode';
+                        localStorage.setItem('theme', 'dark');
+                        if (logo) {
+                            logo.src = logo.dataset.darkSrc;
+                        }
+                    }
+
+                    // Update network colors if network exists and is initialized
+                    if (network) {
+                        try {
+                            const currentOptions = { ...options };
+                            currentOptions.nodes.font.color = isDarkMode ? '#ffffff' : '#212529';
+                            currentOptions.edges.color = isDarkMode ? '#adb5bd' : '#6c757d';
+                            network.setOptions(currentOptions);
+                        } catch (error) {
+                            console.warn('Could not update network options:', error);
+                        }
+                    }
+                });
+
+                // Modify the loadGraphData function to handle dark mode
+                const originalLoadGraphData = loadGraphData;
+                loadGraphData = async function(searchParams = null) {
+                    const data = await originalLoadGraphData(searchParams);
+                    if (data && network) {
+                        try {
+                            const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+                            const currentOptions = { ...options };
+                            currentOptions.nodes.font.color = isDarkMode ? '#ffffff' : '#212529';
+                            network.setOptions(currentOptions);
+                        } catch (error) {
+                            console.warn('Could not update network options:', error);
+                        }
+                    }
+                    return data;
+                };
+            });
+
+            // ... existing code ...
+            // Function to initialize filters based on graph data
+            function initializeFilters() {
+                // console.log('Initializing filters...');
+                
+                // Get filter containers
+                const vertexFilters = document.querySelector('.vertex-filters');
+                const edgeFilters = document.querySelector('.edge-filters');
+                
+                if (!vertexFilters || !edgeFilters) {
+                    console.error('Filter containers not found');
+                    return;
+                }
+                
+                // Clear existing filters
+                vertexFilters.innerHTML = '';
+                edgeFilters.innerHTML = '';
+                
+                // Get unique vertex and edge types from the original data
+                const vertexTypes = new Set(graphData.vertices.map(vertex => vertex.group));
+                const edgeTypes = new Set(graphData.edges.map(edge => edge.label));
+                
+                // console.log('Found vertex types:', Array.from(vertexTypes));
+                // console.log('Found edge types:', Array.from(edgeTypes));
+                
+                // Create vertex type filters
+                Array.from(vertexTypes).sort().forEach(type => {
+                    if (!type) return; // Skip if type is undefined or null
+                    
+                    const style = graphData.metadata.vertexColors[type] || defaultStyles.vertex;
+                    const checkbox = createFilterCheckbox(type, vertexFilters, false, style);
+                    
+                    checkbox.addEventListener('change', () => {
+                        updateVertexVisibility();
+                        updateEdgeVisibility();
+                    });
+                });
+                
+                // Create edge type filters
+                Array.from(edgeTypes).sort().forEach(type => {
+                    if (!type) return; // Skip if type is undefined or null
+                    
+                    const style = graphData.metadata.edgeColors[type] || defaultStyles.edge;
+                    const checkbox = createFilterCheckbox(type, edgeFilters, true, style);
+                    
+                    checkbox.addEventListener('change', () => {
+                        updateEdgeVisibility();
+                    });
+                });
+            }
+
+            // Function to create filter checkboxes
+            function createFilterCheckbox(type, container, isEdge, style) {
+                const filterItem = document.createElement('div');
+                filterItem.className = 'filter-item';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = type;
+                checkbox.checked = true;
+                checkbox.className = 'form-check-input';
+
+                const label = document.createElement('label');
+                label.htmlFor = type;
+                label.className = 'form-check-label';
+                label.textContent = type;
+
+                const colorBox = document.createElement('div');
+                colorBox.className = `filter-color ${isEdge ? 'line' : 'circle'}`;
+                colorBox.style.backgroundColor = isEdge ? style.color : style.background;
+                if (!isEdge) {
+                    colorBox.style.borderColor = style.border;
+                }
+
+                filterItem.appendChild(checkbox);
+                filterItem.appendChild(colorBox);
+                filterItem.appendChild(label);
+                container.appendChild(filterItem);
+
+                return checkbox;
+            }
+        </script>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,59 @@
+{
+    "vertex_type": "string",
+    "id": "string (UUID)", 
+    "source": "string",
+    "observation_date": "string (YYYY-MM-DD)",
+
+    "vertices": {
+        "names": "array<string>",
+    
+        "online_identifiers": "array<object>{
+            type: string,
+            value: string, 
+            category: string
+        }",
+    
+        "location_identifiers": "array<object>{
+            type: string,
+            value: string,
+            category: string
+        }",
+    
+        "identity_documents": "array<object>{
+            type: string,
+            value: string,
+            issuer: string
+        }"
+    },
+
+    "metadata": {
+        "date_of_birth": "string (e.g. YYYY-MM-DD)",
+        "age": "integer",
+        "gender": "string", 
+        "nationality": "string",
+        "languages": "array<string>",
+        "religion": "string",
+        "ethnicity": "string",
+        "height": "string",
+        "weight": "string",
+        "eye_color": "string",
+        "hair_color": "string",
+        "city": "string",
+        "state": "string",
+        "country": "string",
+        "relationships": "array<object>{
+            type: string,
+            name: string
+        }",
+        "companies": "array<object>{
+            name: string,
+            start_date: string (e.g. YYYY-MM-DD),
+            end_date: string (e.g. YYYY-MM-DD)
+        }",
+        "schools": "array<object>{
+            name: string,
+            start_date: string (e.g. YYYY-MM-DD),
+            end_date: string (e.g. YYYY-MM-DD)
+        }"
+    }
+}

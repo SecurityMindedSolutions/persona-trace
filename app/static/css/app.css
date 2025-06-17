@@ -1,0 +1,2200 @@
+/* Layout styles */
+.container-fluid {
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    background-color: var(--bs-body-bg); /* Use Bootstrap's body background variable */
+}
+/* Dark mode styles */
+[data-theme="dark"] .container-fluid {
+    background-color: var(--bg-color); /* Use Bootstrap's dark theme color */
+}
+
+/* Controls header styles */
+.controls-header {
+    padding: 12px 15px;
+    background: #0d6efd;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.controls-header h4 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.app-logo-container {
+    color: black;
+    font-size: 1.5rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+[data-theme="dark"] .app-logo-container {
+    color: white;
+}
+
+
+.controls-column.collapsed .controls-toggle i {
+    transform: rotate(180deg);
+}
+
+/* Left sidebar styles */
+.controls-column {
+    width: 450px;
+    height: 100%;
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+    border-right: 1px solid var(--border-color);
+    z-index: 1001;
+    overflow-y: auto;  /* Enable vertical scrolling */
+    position: relative;
+    transition: transform 0.3s ease, width 0.3s ease;
+}
+
+/* Controls column collapsed state */
+.controls-column.collapsed {
+    transform: translateX(-350px);
+    width: 0;
+    border-right: none;
+}
+
+/* Graph column styles */
+.graph-column {
+    flex: 1;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    background-color: #f8f9fa;
+    border-left: 1px solid #dee2e6;
+    transition: margin-left 0.3s ease;
+}
+
+/* Adjust graph column when controls are collapsed */
+.controls-column.collapsed + .graph-column {
+    margin-left: 0;
+    border-left: none;
+}
+
+/* Remove any Bootstrap container padding */
+.container-fluid, .row, [class^="col-"] {
+    padding: 0;
+    margin: 0;
+}
+
+/* Ensure the graph card takes full height */
+.graph-card {
+    height: 100vh;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.graph-card .card-header {
+    flex-shrink: 0;
+    z-index: 2;
+}
+
+.graph-card .card-body {
+    flex: 1;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+#graph-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background-color: #f8f9fa;
+}
+
+/* Ensure proper z-indexing for overlays */
+.loading-overlay {
+    z-index: 1000;
+}
+
+/* Adjust floating buttons */
+.floating-button {
+    position: absolute;
+    bottom: 20px;
+    z-index: 1001;
+}
+
+#resetView {
+    right: calc((var(--button-width) * 2) + 50px);
+}
+
+#showOverlaps {
+    right: calc(var(--button-width) + 30px);
+}
+
+#fitToView {
+    right: 10px;
+}
+
+/* Ensure cards in controls stay within bounds */
+.filters-card {
+    margin: 10px;
+    border-radius: 4px;
+    overflow: visible;  /* Change from hidden to visible */
+    background: #fff;
+}
+
+/* Ensure proper scrolling in controls */
+.controls-column::-webkit-scrollbar {
+    display: none;  /* Hide scrollbar for Chrome, Safari and Opera */
+}
+
+.controls-column {
+    -ms-overflow-style: none;  /* Hide scrollbar for IE and Edge */
+    scrollbar-width: none;  /* Hide scrollbar for Firefox */
+}
+
+/* Toggle button styles */
+.controls-toggle {
+
+}
+
+.controls-toggle:hover {
+    background-color: #0b5ed7;  /* Slightly darker blue */
+    box-shadow: 3px 0 15px rgba(0,0,0,0.3);
+}
+
+.controls-toggle i {
+    transition: transform 0.3s ease;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.controls-column.collapsed .controls-toggle i {
+    transform: rotate(180deg);
+}
+
+/* Ensure smooth transition for both panel and graph */
+.controls-column {
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+}
+
+.controls-column.collapsed {
+    transform: translateX(-350px);
+}
+
+.graph-column {
+    transition: margin-left 0.3s ease;
+}
+
+.controls-column.collapsed + .graph-column {
+    margin-left: 0;
+}
+
+/* Add a subtle animation to the toggle button on page load */
+@keyframes pulseToggle {
+    0% { transform: translateY(-50%) scale(1); }
+    50% { transform: translateY(-50%) scale(1.1); }
+    100% { transform: translateY(-50%) scale(1); }
+}
+
+/* Ensure the toggle button stays visible */
+.controls-column.collapsed .controls-toggle {
+    right: -48px;  /* Keep the button visible when collapsed */
+    box-shadow: 3px 0 10px rgba(0,0,0,0.2);
+}
+
+/* Graph column styles */
+.graph-column {
+    flex: 1;  /* Take remaining space */
+    height: 100vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Adjust graph container */
+#graph-container {
+    flex: 1;  /* Take all available space */
+    width: 100%;
+    height: 100%;
+    border: none;
+    background-color: #f8f9fa;
+}
+
+/* Ensure cards in controls stay within bounds */
+.filters-card {
+    margin: 10px;
+    border-radius: 4px;
+    overflow: visible;  /* Change from hidden to visible */
+}
+
+/* Adjust floating buttons position */
+.floating-button {
+    z-index: 100;
+}
+
+/* Ensure proper scrolling in controls */
+.controls-column {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--bg-secondary);
+}
+
+.controls-column::-webkit-scrollbar {
+    width: 8px;
+}
+
+.controls-column::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.controls-column::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+.controls-column::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+/* Dark mode adjustments for scrollbars */
+[data-theme="dark"] .controls-column::-webkit-scrollbar-thumb {
+    background: var(--text-secondary);
+}
+
+[data-theme="dark"] .controls-column::-webkit-scrollbar-thumb:hover {
+    background: var(--text-primary);
+}
+
+/* Ensure loading spinner and text are centered */
+.loading-overlay .spinner-border,
+.loading-overlay .loading-text {
+    position: relative;
+    z-index: 1;
+}
+
+/* Improve collapse content positioning */
+.collapse .card-body {
+    position: relative;
+    padding: 1rem;
+    margin: 0;
+}
+
+/* Ensure filter sections maintain proper spacing */
+.filter-section {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+/* Add subtle shadow to loading overlay */
+.loading-overlay {
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Ensure proper stacking of elements */
+.card > .card-header {
+    position: relative;
+    z-index: 4;  /* Above everything */
+    background: inherit;  /* Ensure header background is solid */
+}
+
+.card > .collapse,
+.card > .collapsing {
+    z-index: 2;  /* Below header but above other content */
+}
+
+/* Card header chevron styles */
+.card-header[data-bs-toggle="collapse"] {
+    position: relative;
+    padding-right: 2.5rem; /* Make room for the chevron */
+}
+
+.card-header[data-bs-toggle="collapse"] .bi-chevron-down {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: transform 0.3s ease;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+    opacity: 0.7;
+}
+
+.card-header[data-bs-toggle="collapse"]:hover .bi-chevron-down {
+    opacity: 1;
+}
+
+.card-header[data-bs-toggle="collapse"][aria-expanded="false"] .bi-chevron-down {
+    transform: translateY(-50%) rotate(-90deg);
+}
+
+.card-header[data-bs-toggle="collapse"][aria-expanded="true"] .bi-chevron-down {
+    transform: translateY(-50%) rotate(0deg);
+}
+
+/* Improve collapse header interaction */
+.card-header[data-bs-toggle="collapse"]:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Ensure collapse content is properly layered */
+.collapse.show {
+    position: relative;
+    z-index: 1;
+}
+
+/* Add transition for smoother collapse */
+.collapse {
+    transition: height 0.35s ease;
+}
+
+/* Ensure loading overlay adjusts with collapse */
+.collapsing .loading-overlay {
+    transition: height 0.35s ease;
+    height: 100%;
+}
+
+/* Ensure Bootstrap Icons are properly styled */
+.bi {
+    display: inline-block;
+    font-size: inherit;
+    font-style: normal;
+    font-weight: normal !important;
+    font-variant: normal;
+    text-transform: none;
+    line-height: 1;
+    vertical-align: -0.125em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Select2 custom styles */
+.select2-container {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.select2-container--bootstrap-5 {
+    width: 100% !important;
+}
+
+.select2-container--bootstrap-5 .select2-selection {
+    min-height: 38px;
+    width: 100% !important;
+}
+
+.select2-container--bootstrap-5 .select2-selection--single {
+    padding: 0.375rem 0.75rem;
+    width: 100% !important;
+}
+
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+    padding: 0;
+    line-height: 1.5;
+    width: 100% !important;
+}
+
+.select2-container--bootstrap-5 .select2-dropdown {
+    border-color: #dee2e6;
+    width: 100% !important;
+    min-width: 100% !important;
+    box-sizing: border-box !important;
+    left: 0 !important;
+}
+
+.select2-container--bootstrap-5 .select2-search__field {
+    padding: 0.375rem 0.75rem;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.select2-container--bootstrap-5 .select2-results {
+    width: 100% !important;
+}
+
+.select2-container--bootstrap-5 .select2-results__options {
+    max-width: 100% !important;
+    width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+.select2-container--bootstrap-5.select2-container--open {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Ensure dropdown text wraps properly */
+.select2-results__option {
+    white-space: normal;
+    word-wrap: break-word;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Prevent any Select2 elements from causing layout shifts */
+.select2, .select2-container, .select2-dropdown, .select2-search, .select2-results {
+    box-sizing: border-box !important;
+}
+
+/* Floating button styles */
+.floating-button {
+    position: absolute;
+    bottom: 20px;
+    z-index: 100;
+    padding: 10px 20px;
+    border-radius: 30px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    opacity: 0.9;
+    transition: opacity 0.3s, transform 0.2s;
+    min-width: var(--button-width);  /* Use CSS variable */
+    text-align: center;  /* Center button text */
+}
+
+.floating-button:hover {
+    opacity: 1;
+    transform: translateY(-2px);
+}
+
+/* Calculate button positions for perfect centering */
+:root {
+    --button-width: 160px;  /* Match min-width of buttons */
+    --button-spacing: 40px;  /* Equal spacing between buttons */
+}
+
+/* Ensure icon alignment */
+.floating-button i {
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* Overlaps section styles */
+#overlapsContent {
+    max-height: none;  /* Remove max-height restriction */
+    height: auto;  /* Let it grow as needed */
+    overflow-y: auto;  /* Enable scrolling if needed */
+    padding: 10px;  /* Add some padding */
+}
+
+.overlap-item {
+    padding: 10px;
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;  /* Add spacing between items */
+}
+
+.overlap-item:hover {
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+.overlap-item-content {
+    flex-grow: 1;
+}
+
+.overlap-item .fw-bold {
+    color: #2C3E50;
+    font-size: 1.1em;
+    margin-bottom: 2px;
+}
+
+.overlap-item .small {
+    color: #666;
+    margin: 0;
+}
+
+/* Compact focus button */
+.overlap-item .btn-focus {
+    padding: 4px 8px;
+    font-size: 0.875rem;
+    line-height: 1;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.overlap-item:hover .btn-focus {
+    opacity: 1;
+}
+
+.overlap-item .btn-focus i {
+    font-size: 0.875rem;
+    margin-right: 4px;
+}
+
+/* Type header styles */
+.overlap-type-header {
+    color: #2C3E50;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+#overlapsContent::-webkit-scrollbar {
+    width: 8px;
+}
+
+#overlapsContent::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#overlapsContent::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+#overlapsContent::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Focus Node section styles */
+#focusCollapse {
+    max-height: calc(25vh - 20px);  /* 25% of viewport height */
+    overflow-y: auto;
+}
+
+/* Filters section styles - expand when shown */
+#filtersCollapse {
+    max-height: calc(25vh - 20px);  /* Default collapsed height */
+    overflow-y: auto;
+}
+
+#filtersCollapse.show {
+    max-height: calc(60vh - 20px);  /* Expanded height */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Search section styles - expand when shown */
+#searchCollapse {
+    max-height: none;  /* Remove max-height restriction */
+    overflow: visible;  /* Allow content to be fully visible */
+}
+
+#searchCollapse .card-body {
+    overflow: visible;  /* Ensure card body content is fully visible */
+    height: auto;  /* Allow height to grow with content */
+    min-height: 0;  /* Remove minimum height restriction */
+}
+
+#searchCollapse .filter-section {
+    overflow: visible;  /* Ensure filter sections are fully visible */
+    margin-bottom: 1rem;  /* Add some spacing between sections */
+}
+
+#searchCollapse .filter-section:last-child {
+    margin-bottom: 0;  /* Remove margin from last section */
+}
+
+/* Ensure proper content flow in search section */
+#searchCollapse .row {
+    margin-bottom: 1rem;  /* Add spacing between rows */
+}
+
+#searchCollapse .row:last-child {
+    margin-bottom: 0;  /* Remove margin from last row */
+}
+
+/* Ensure form controls in search section are properly sized */
+#searchCollapse .form-control,
+#searchCollapse .form-select {
+    width: 100%;  /* Full width for form controls */
+    margin-bottom: 0;  /* Remove bottom margin */
+}
+
+/* Ensure proper spacing for search button */
+#searchCollapse .btn {
+    margin-top: 0;  /* Remove top margin from buttons */
+}
+
+/* Trace section styles */
+#traceCollapse {
+    max-height: 40vh;  /* Increased from 25% to 40% of viewport height */
+    overflow-y: auto;
+}
+
+/* Overlaps section styles - expand when shown */
+#overlapsCollapse {
+    max-height: calc(25vh - 20px);  /* Default collapsed height */
+    overflow-y: auto;
+}
+
+#overlapsCollapse.show {
+    max-height: calc(60vh - 20px);  /* Expanded height */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure proper content scrolling in expanded state */
+#searchCollapse.show .card-body,
+#filtersCollapse.show .card-body,
+#overlapsCollapse.show .card-body {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Ensure filter sections scroll properly when expanded */
+#filtersCollapse.show .vertex-filters,
+#filtersCollapse.show .edge-filters {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;  /* Allow proper flex shrinking */
+}
+
+/* Ensure overlaps content scrolls properly when expanded */
+#overlapsCollapse.show #overlapsContent {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;  /* Allow proper flex shrinking */
+}
+
+/* Maintain compact size for other sections */
+.filters-card:not(:nth-child(2)):not(:nth-child(4)) .collapse {
+    max-height: calc(25vh - 20px);
+}
+
+/* Style scrollbars for better visibility */
+.vertex-filters::-webkit-scrollbar,
+.edge-filters::-webkit-scrollbar,
+#overlapsContent::-webkit-scrollbar {
+    width: 8px;
+}
+
+.vertex-filters::-webkit-scrollbar-track,
+.edge-filters::-webkit-scrollbar-track,
+#overlapsContent::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.vertex-filters::-webkit-scrollbar-thumb,
+.edge-filters::-webkit-scrollbar-thumb,
+#overlapsContent::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.vertex-filters::-webkit-scrollbar-thumb:hover,
+.edge-filters::-webkit-scrollbar-thumb:hover,
+#overlapsContent::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Add tooltip styling */
+.vis-tooltip {
+    position: absolute;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 12px;
+    max-width: 400px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    white-space: pre-wrap;
+}
+
+.tooltip-section {
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+.tooltip-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.tooltip-header {
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #2c3e50;
+}
+
+.tooltip-key {
+    color: #2980b9;
+}
+
+.tooltip-value {
+    color: #27ae60;
+}
+
+/* Ensure proper spinner animation */
+@keyframes spinner-border {
+    100% { 
+        transform: rotate(360deg); 
+    }
+}
+
+.spinner-border {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+    vertical-align: text-bottom;
+    border: 0.25em solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spinner-border .75s linear infinite;
+}
+
+/* Center the spinner and text properly */
+.loading-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+}
+
+/* Specific styling for graph loading overlay */
+#graphLoadingOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(2px);
+    z-index: 1001;
+}
+
+.loading-overlay .spinner-border {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.loading-text {
+    margin: 0;
+    padding: 0;
+    color: #0d6efd;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.row {
+    margin: 0 -5px;  /* Reduced margin */
+    flex: 1;  /* Take up remaining space */
+    display: flex;  /* Enable flexbox */
+}
+.col-md-9, .col-md-3 {
+    padding: 0 5px;  /* Reduced padding */
+    display: flex;  /* Enable flexbox */
+    flex-direction: column;  /* Stack children vertically */
+}
+.col-md-9 {
+    flex: 0 0 75%;  /* Fixed width ratio */
+}
+.col-md-3 {
+    flex: 0 0 25%;  /* Fixed width ratio */
+    max-height: 100vh;  /* Limit height to viewport */
+    overflow-y: auto;  /* Enable scrolling if needed */
+}
+
+/* Top Navigation Bar */
+.top-nav {
+    background: #0d6efd;
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1002;
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex: 0 0 auto;
+    height: 100%;
+}
+
+.nav-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    height: 100%;
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: 15px;
+}
+
+.search-bar input {
+    width: 200px;
+}
+
+.search-bar select {
+    width: 150px;
+}
+
+.search-bar button {
+    margin-left: 10px;
+}
+
+.show-all-overlaps {
+    margin-left: 10px;
+}
+
+.show-all-overlaps button {
+    margin-left: 10px;
+}
+
+.search-bar button:hover {
+    background-color: #0b5ed7;
+}
+
+.show-all-overlaps button:hover {
+    background-color: #0b5ed7;
+}
+
+.graph-stats {
+    align-items: center;
+    display: flex;
+    gap: 20px;
+    color: white;
+    font-size: 1.2rem;
+    margin-left: auto;
+}
+
+.graph-stats span {
+    font-size: 1rem;
+}
+
+/* Main Content Layout */
+.main-content {
+    display: flex;
+    height: calc(100vh - 56px);
+    margin-top: 56px;
+    position: relative;
+}
+
+/* Controls Column */
+.controls-column {
+    width: 450px;
+    height: 100%;
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+    border-right: 1px solid var(--border-color);
+    z-index: 1001;
+    overflow-y: auto;  /* Enable vertical scrolling */
+    position: relative;
+    transition: transform 0.3s ease, width 0.3s ease;
+}
+
+/* Controls column collapsed state */
+.controls-column.collapsed {
+    transform: translateX(-350px);
+    width: 0;
+    border-right: none;
+}
+
+/* Graph Column */
+.graph-column {
+    flex: 1;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    background-color: #f8f9fa;
+    border-left: 1px solid #dee2e6;
+    transition: margin-left 0.3s ease;
+}
+
+/* Adjust graph column when controls are collapsed */
+.controls-column.collapsed + .graph-column {
+    margin-left: 0;
+    border-left: none;
+}
+
+#graph-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background-color: #f8f9fa;
+}
+
+/* Floating buttons */
+.floating-button {
+    position: absolute;
+    bottom: 20px;
+    z-index: 1001;
+}
+
+
+        :root {
+            /* Light mode variables */
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #e9ecef;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --border-color: #dee2e6;
+            --card-bg: #ffffff;
+            --card-border: #e9ecef;
+            --card-header-bg: #f8f9fa;
+            --input-bg: #ffffff;
+            --input-border: #ced4da;
+            --input-focus-bg: #ffffff;
+            --input-focus-border: #86b7fe;
+            --btn-outline-color: #6c757d;
+            --btn-outline-hover-bg: #f8f9fa;
+            --overlap-header-color: #495057;
+            --overlap-item-bg: #f8f9fa;
+            --overlap-item-border: #e9ecef;
+            --graph-bg: #ffffff;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            /* Dark mode variables */
+            --bg-primary: #1a1d21;
+            --bg-secondary: #242830;
+            --bg-tertiary: #2d3238;
+            --text-primary: #e9ecef;
+            --text-secondary: #adb5bd;
+            --border-color: #373b3e;
+            --card-bg: #242830;
+            --card-border: #2d3238;
+            --card-header-bg: #2d3238;
+            --input-bg: #2d3238;
+            --input-border: #373b3e;
+            --input-focus-bg: #2d3238;
+            --input-focus-border: #4dabf7;
+            --btn-outline-color: #adb5bd;
+            --btn-outline-hover-bg: #2d3238;
+            --overlap-header-color: #e9ecef;
+            --overlap-item-bg: #2d3238;
+            --overlap-item-border: #373b3e;
+            --graph-bg: #1a1d21;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .top-nav {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            box-shadow: 0 2px 4px var(--shadow-color);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        .card-header {
+            background-color: var(--card-header-bg) !important;
+            border-bottom: 1px solid var(--card-border);
+            color: var(--text-primary);
+        }
+
+        .form-control,
+        .form-select {
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            background-color: var(--input-focus-bg);
+            border-color: var(--input-focus-border);
+            color: var(--text-primary);
+            box-shadow: 0 0 0 0.25rem rgba(77, 171, 247, 0.25);
+        }
+
+        .btn-outline-light {
+            color: var(--btn-outline-color);
+            border-color: var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-light:hover {
+            background-color: var(--btn-outline-hover-bg);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+
+        .overlap-type-header {
+            color: var(--overlap-header-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .overlap-item {
+            background-color: var(--overlap-item-bg);
+            border: 1px solid var(--overlap-item-border);
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .overlap-item:hover {
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .text-muted {
+            color: var(--text-secondary) !important;
+        }
+
+        /* Graph container styles */
+        #graph-container {
+            background-color: var(--graph-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            box-shadow: 0 2px 4px var(--shadow-color);
+        }
+
+        .vis-network {
+            outline: none;
+        }
+
+        /* Select2 dark mode styles */
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-selection {
+            background-color: var(--bs-dark);
+            border-color: var(--bs-gray-600);
+            color: var(--bs-light);
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+            color: var(--bs-light);
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown {
+            background-color: var(--bs-dark);
+            border-color: var(--bs-gray-600);
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option {
+            color: var(--bs-light);
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option--highlighted {
+            background-color: var(--bs-gray-700);
+            color: var(--bs-light);
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-search__field {
+            background-color: var(--bs-dark);
+            color: var(--bs-light);
+            border-color: var(--bs-gray-600);
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-selection__placeholder {
+            color: var(--bs-gray-400);
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow b {
+            border-color: var(--bs-light) transparent transparent transparent;
+        }
+
+        [data-theme="dark"] .select2-container--bootstrap-5.select2-container--open .select2-selection--single .select2-selection__arrow b {
+            border-color: transparent transparent var(--bs-light) transparent;
+        }
+
+        /* Theme toggle button styles */
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            margin-left: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-radius: 0.375rem;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        .theme-toggle i {
+            font-size: 1.2rem;
+        }
+
+        /* Loading overlay styles */
+        .loading-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        /* Filter item styles */
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .filter-item:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        .filter-color {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 50%;
+            border: 1px solid var(--border-color);
+        }
+
+        .filter-color.line {
+            width: 2rem;
+            height: 0.25rem;
+            border-radius: 0.125rem;
+        }
+
+        /* Alert styles */
+        .alert {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        /* Floating button styles */
+        .floating-button {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            box-shadow: 0 2px 4px var(--shadow-color);
+            transition: all 0.3s ease;
+        }
+
+        .floating-button:hover {
+            background-color: var(--bg-tertiary);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+
+        /* Graph stats styles */
+        .graph-stats {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Controls column styles */
+        .controls-column {
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            box-shadow: 2px 0 4px var(--shadow-color);
+        }
+
+        .controls-column.collapsed {
+            box-shadow: none;
+        }
+
+        /* Collapse header styles */
+        .card-header[role="button"] {
+            transition: background-color 0.3s ease;
+        }
+
+        .card-header[role="button"]:hover {
+            background-color: var(--bg-tertiary) !important;
+        }
+
+        /* Custom scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* Add these new styles */
+        .nav-title {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .card-header {
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .card-header .card-title {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Update button styles */
+        .btn-outline-secondary {
+            color: var(--text-primary);
+            border-color: var(--border-color);
+            background-color: transparent;
+        }
+
+        .btn-outline-secondary:hover {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+
+        /* Update background colors for card headers */
+        .bg-secondary-subtle {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        .bg-primary-subtle {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        .bg-success-subtle {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        .bg-info-subtle {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        .bg-warning-subtle {
+            background-color: var(--bg-secondary) !important;
+        }
+
+        /* Update text emphasis colors */
+        .text-primary-emphasis {
+            color: var(--text-primary) !important;
+        }
+
+        .text-success-emphasis {
+            color: var(--text-primary) !important;
+        }
+
+        .text-info-emphasis {
+            color: var(--text-primary) !important;
+        }
+
+        .text-warning-emphasis {
+            color: var(--text-primary) !important;
+        }
+
+        /* Update chevron icon color */
+        .card-header .bi-chevron-down {
+            color: var(--text-primary);
+        }
+
+/* Dark Mode */
+:root {
+    /* Light mode variables */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --border-color: #dee2e6;
+    --card-bg: #ffffff;
+    --card-border: #e9ecef;
+    --card-header-bg: #f8f9fa;
+    --input-bg: #ffffff;
+    --input-border: #ced4da;
+    --input-focus-bg: #ffffff;
+    --input-focus-border: #86b7fe;
+    --btn-outline-color: #6c757d;
+    --btn-outline-hover-bg: #f8f9fa;
+    --overlap-header-color: #495057;
+    --overlap-item-bg: #f8f9fa;
+    --overlap-item-border: #e9ecef;
+    --graph-bg: #ffffff;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+    /* Dark mode variables */
+    --bg-primary: #1a1d21;
+    --bg-secondary: #242830;
+    --bg-tertiary: #2d3238;
+    --text-primary: #e9ecef;
+    --text-secondary: #adb5bd;
+    --border-color: #373b3e;
+    --card-bg: #242830;
+    --card-border: #2d3238;
+    --card-header-bg: #2d3238;
+    --input-bg: #2d3238;
+    --input-border: #373b3e;
+    --input-focus-bg: #2d3238;
+    --input-focus-border: #4dabf7;
+    --btn-outline-color: #adb5bd;
+    --btn-outline-hover-bg: #2d3238;
+    --overlap-header-color: #e9ecef;
+    --overlap-item-bg: #2d3238;
+    --overlap-item-border: #373b3e;
+    --graph-bg: #1a1d21;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.top-nav {
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 2px 4px var(--shadow-color);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.card-header {
+    background-color: var(--card-header-bg) !important;
+    border-bottom: 1px solid var(--card-border);
+    color: var(--text-primary);
+}
+
+.form-control,
+.form-select {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--input-focus-bg);
+    border-color: var(--input-focus-border);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 0.25rem rgba(77, 171, 247, 0.25);
+}
+
+.btn-outline-light {
+    color: var(--btn-outline-color);
+    border-color: var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.btn-outline-light:hover {
+    background-color: var(--btn-outline-hover-bg);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.overlap-type-header {
+    color: var(--overlap-header-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.overlap-item {
+    background-color: var(--overlap-item-bg);
+    border: 1px solid var(--overlap-item-border);
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.overlap-item:hover {
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.text-muted {
+    color: var(--text-secondary) !important;
+}
+
+/* Graph container styles */
+#graph-container {
+    background-color: var(--graph-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+.vis-network {
+    outline: none;
+}
+
+/* Select2 dark mode styles */
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-selection {
+    background-color: var(--bs-dark);
+    border-color: var(--bs-gray-600);
+    color: var(--bs-light);
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+    color: var(--bs-light);
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-dropdown {
+    background-color: var(--bs-dark);
+    border-color: var(--bs-gray-600);
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option {
+    color: var(--bs-light);
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-results__option--highlighted {
+    background-color: var(--bs-gray-700);
+    color: var(--bs-light);
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-search__field {
+    background-color: var(--bs-dark);
+    color: var(--bs-light);
+    border-color: var(--bs-gray-600);
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-selection__placeholder {
+    color: var(--bs-gray-400);
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow b {
+    border-color: var(--bs-light) transparent transparent transparent;
+}
+
+[data-theme="dark"] .select2-container--bootstrap-5.select2-container--open .select2-selection--single .select2-selection__arrow b {
+    border-color: transparent transparent var(--bs-light) transparent;
+}
+
+/* Theme toggle button styles */
+.theme-toggle {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    margin-left: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 0.375rem;
+    transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.theme-toggle i {
+    font-size: 1.2rem;
+}
+
+/* Loading overlay styles */
+.loading-overlay {
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+/* Filter item styles */
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    transition: background-color 0.3s ease;
+}
+
+.filter-item:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.filter-color {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+}
+
+.filter-color.line {
+    width: 2rem;
+    height: 0.25rem;
+    border-radius: 0.125rem;
+}
+
+/* Alert styles */
+.alert {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+/* Floating button styles */
+.floating-button {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    box-shadow: 0 2px 4px var(--shadow-color);
+    transition: all 0.3s ease;
+}
+
+.floating-button:hover {
+    background-color: var(--bg-tertiary);
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+
+/* Controls column styles */
+.controls-column {
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    box-shadow: 2px 0 4px var(--shadow-color);
+}
+
+.controls-column.collapsed {
+    box-shadow: none;
+}
+
+/* Collapse header styles */
+.card-header[role="button"] {
+    transition: background-color 0.3s ease;
+}
+
+.card-header[role="button"]:hover {
+    background-color: var(--bg-tertiary) !important;
+}
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+/* Add these new styles */
+.nav-title {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.card-header {
+    border-bottom: 1px solid var(--card-border);
+}
+
+.card-header .card-title {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Update button styles */
+.btn-outline-secondary {
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    background-color: transparent;
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+/* Update background colors for card headers */
+.bg-secondary-subtle {
+    background-color: var(--bg-secondary) !important;
+}
+
+.bg-primary-subtle {
+    background-color: var(--bg-secondary) !important;
+}
+
+.bg-success-subtle {
+    background-color: var(--bg-secondary) !important;
+}
+
+.bg-info-subtle {
+    background-color: var(--bg-secondary) !important;
+}
+
+.bg-warning-subtle {
+    background-color: var(--bg-secondary) !important;
+}
+
+/* Update text emphasis colors */
+.text-primary-emphasis {
+    color: var(--text-primary) !important;
+}
+
+.text-success-emphasis {
+    color: var(--text-primary) !important;
+}
+
+.text-info-emphasis {
+    color: var(--text-primary) !important;
+}
+
+.text-warning-emphasis {
+    color: var(--text-primary) !important;
+}
+
+/* Update chevron icon color */
+.card-header .bi-chevron-down {
+    color: var(--text-primary);
+}
+
+/* Override Bootstrap card header styles */
+.card-header {
+    background-color: var(--card-header-bg) !important;
+    border-bottom: 1px solid var(--card-border);
+    color: var(--text-primary);
+    padding: 0.75rem 1rem;
+}
+
+/* Override Bootstrap background classes */
+.bg-primary,
+.bg-secondary,
+.bg-success,
+.bg-info,
+.bg-warning,
+.bg-danger {
+    background-color: var(--card-header-bg) !important;
+}
+
+/* Override Bootstrap subtle background classes */
+.bg-primary-subtle,
+.bg-secondary-subtle,
+.bg-success-subtle,
+.bg-info-subtle,
+.bg-warning-subtle,
+.bg-danger-subtle {
+    background-color: var(--card-header-bg) !important;
+}
+
+/* Update card styles */
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+/* Update filters card styles */
+.filters-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+}
+
+.filters-card .card-header {
+    background-color: var(--card-header-bg) !important;
+    border-bottom: 1px solid var(--card-border);
+}
+
+/* Update graph card styles */
+.graph-card .card-header {
+    background-color: var(--card-header-bg) !important;
+    border-bottom: 1px solid var(--card-border);
+}
+
+/* Update stats card styles */
+.stats-card .card-header {
+    background-color: var(--card-header-bg) !important;
+    border-bottom: 1px solid var(--card-border);
+}
+
+/* Update card header hover states */
+.card-header[role="button"]:hover,
+.card-header[data-bs-toggle="collapse"]:hover {
+    background-color: var(--bg-tertiary) !important;
+}
+
+/* Update card header text */
+.card-header .card-title {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Update card header chevron */
+.card-header .bi-chevron-down {
+    color: var(--text-primary);
+}
+
+/* Dark mode styles */
+[data-theme="dark"] {
+    --card-bg: #2d2d2d;
+    --card-border: #404040;
+    --text-color: #e0e0e0;
+    --text-muted: #a0a0a0;
+    --bg-color: #1a1a1a;
+    --border-color: #404040;
+}
+
+[data-theme="dark"] .card {
+    background-color: var(--card-bg);
+    border-color: var(--card-border);
+}
+
+[data-theme="dark"] .card-body {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .card-header {
+    background-color: var(--card-bg);
+    border-bottom-color: var(--card-border);
+}
+
+[data-theme="dark"] .controls-column {
+    background-color: var(--bg-color);
+    border-right-color: var(--border-color);
+}
+
+[data-theme="dark"] .graph-column {
+    background-color: var(--bg-color);
+    border-left-color: var(--border-color);
+}
+
+[data-theme="dark"] #graph-container {
+    background-color: var(--bg-color);
+}
+
+[data-theme="dark"] .loading-overlay {
+    background: rgba(33, 37, 41, 0.95);
+}
+
+[data-theme="dark"] .loading-text {
+    color: #0d6efd;
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--card-bg);
+    border-color: var(--card-border);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: var(--card-bg);
+    border-color: #0d6efd;
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .form-label {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .text-muted {
+    color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .overlap-item {
+    background-color: rgba(45, 45, 45, 0.5);
+}
+
+[data-theme="dark"] .overlap-item:hover {
+    background-color: rgba(45, 45, 45, 0.8);
+}
+
+[data-theme="dark"] .overlap-item .fw-bold {
+    color: #e0e0e0;
+}
+
+[data-theme="dark"] .overlap-item .small {
+    color: #a0a0a0;
+}
+
+[data-theme="dark"] .overlap-type-header {
+    color: #e0e0e0;
+    border-bottom-color: var(--card-border);
+}
+
+/* Controls content styles */
+.controls-content {
+    height: 100%;  /* Take full height */
+    padding-bottom: 20px;  /* Add some padding at the bottom */
+}
+
+/* Remove scrollbar styles */
+.controls-column::-webkit-scrollbar {
+    display: none;  /* Hide scrollbar for Chrome, Safari and Opera */
+}
+
+.controls-column {
+    -ms-overflow-style: none;  /* Hide scrollbar for IE and Edge */
+    scrollbar-width: none;  /* Hide scrollbar for Firefox */
+}
+
+/* Ensure cards in controls stay within bounds */
+.filters-card {
+    margin: 10px;
+    border-radius: 4px;
+    overflow: visible;  /* Change from hidden to visible */
+    background: #fff;
+}
+
+/* Ensure proper content flow */
+.card-body {
+    overflow: visible;  /* Ensure card bodies don't scroll */
+}
+
+/* Controls content scrollbar styles */
+.controls-content {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) var(--bg-secondary);
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+}
+
+.controls-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.controls-content::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.controls-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+.controls-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+/* Dark mode adjustments for scrollbars */
+[data-theme="dark"] .controls-content::-webkit-scrollbar-thumb {
+    background: var(--text-secondary);
+}
+
+[data-theme="dark"] .controls-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-primary);
+}
+
+[data-theme="dark"] .controls-content {
+    scrollbar-color: var(--text-secondary) var(--bg-secondary);
+}
+
+/* Logo styles */
+.app-logo {
+    height: 36px;
+    width: auto;
+    margin: 0;
+    transition: opacity 0.3s ease;
+}
+
+/* Dark mode logo styles */
+[data-theme="dark"] .app-logo {
+    filter: brightness(1.2); /* Slightly brighten the logo in dark mode */
+}
+
+/* Remove old nav-title styles */
+.nav-title {
+    display: none;
+}
+
+/* Responsive styles */
+@media (max-width: 1200px) {
+    .controls-column {
+        width: 400px;
+    }
+    
+    .controls-column.collapsed {
+        transform: translateX(-400px);
+    }
+}
+
+@media (max-width: 992px) {
+    .controls-column {
+        width: 350px;
+    }
+    
+    .controls-column.collapsed {
+        transform: translateX(-350px);
+    }
+    
+    .graph-stats span {
+        margin-left: 10px;
+        font-size: 0.9rem;
+    }
+    
+    .theme-toggle span {
+        display: none; /* Hide text on medium screens */
+    }
+    
+    .theme-toggle {
+        padding: 0.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .controls-column {
+        width: 300px;
+        position: fixed;
+        left: 0;
+        top: 56px; /* Account for top nav */
+        height: calc(100vh - 56px);
+        z-index: 1000;
+    }
+    
+    .controls-column.collapsed {
+        transform: translateX(-300px);
+    }
+    
+    .graph-column {
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    .top-nav {
+        padding: 10px;
+    }
+    
+    .app-logo-container span {
+        display: none; /* Hide app name on small screens */
+    }
+    
+    .graph-stats {
+        gap: 10px;
+    }
+    
+    .graph-stats span {
+        margin-left: 5px;
+        font-size: 0.8rem;
+    }
+    
+    /* Adjust floating buttons for mobile */
+    .floating-button {
+        padding: 8px 15px;
+        font-size: 0.9rem;
+        bottom: 15px;
+    }
+    
+    #resetView {
+        right: calc((var(--button-width) * 2) + 35px);
+    }
+    
+    #showOverlaps {
+        right: calc(var(--button-width) + 20px);
+    }
+    
+    #fitToView {
+        right: 5px;
+    }
+    
+    /* Make cards more compact on mobile */
+    .filters-card {
+        margin: 8px;
+    }
+    
+    .card-header {
+        padding: 0.75rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    /* Adjust form controls for mobile */
+    .form-control,
+    .form-select,
+    .btn {
+        font-size: 0.9rem;
+    }
+    
+    /* Make search section more compact */
+    .search-section {
+        margin-bottom: 1rem;
+    }
+    
+    .search-section .row {
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Dev tools specific adjustments */
+@media (max-width: 1400px) and (min-width: 769px) {
+    /* When dev tools are open on desktop */
+    .controls-column {
+        width: 300px;
+    }
+    
+    .controls-column.collapsed {
+        transform: translateX(-300px);
+    }
+    
+    .graph-stats span {
+        margin-left: 8px;
+        font-size: 0.85rem;
+    }
+    
+    .theme-toggle span {
+        display: none;
+    }
+    
+    .theme-toggle {
+        padding: 0.5rem;
+    }
+}
+
+/* Ensure proper touch interaction on mobile */
+@media (hover: none) {
+    .floating-button:active {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    
+    .card-header[role="button"]:active {
+        background-color: var(--bg-tertiary) !important;
+    }
+    
+    .btn:active {
+        transform: scale(0.98);
+    }
+}
+
+/* Ensure proper scrolling on mobile */
+@media (max-width: 768px) {
+    .controls-content {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+    
+    .card-body {
+        overscroll-behavior: contain;
+    }
+    
+    /* Prevent pull-to-refresh on mobile */
+    body {
+        overscroll-behavior-y: none;
+    }
+}
+
+/* Adjust for very small screens */
+@media (max-width: 360px) {
+    .controls-column {
+        width: 280px;
+    }
+    
+    .controls-column.collapsed {
+        transform: translateX(-280px);
+    }
+    
+    .top-nav {
+        padding: 8px;
+    }
+    
+    .graph-stats {
+        gap: 5px;
+    }
+    
+    .graph-stats span {
+        font-size: 0.75rem;
+    }
+    
+    /* Make floating buttons even more compact */
+    .floating-button {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        bottom: 10px;
+    }
+    
+    :root {
+        --button-width: 140px;
+    }
+}
+
+/* Ensure proper z-indexing for mobile */
+@media (max-width: 768px) {
+    .controls-column {
+        z-index: 1002; /* Above graph column */
+    }
+    
+    .graph-column {
+        z-index: 1001;
+    }
+    
+    .floating-button {
+        z-index: 1003; /* Above controls column */
+    }
+}
