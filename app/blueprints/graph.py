@@ -149,8 +149,8 @@ def api_graph_data():
         logger.error("API error:")
         logger.error(error_msg)
         return jsonify({
-            'error': str(e),
-            'traceback': error_trace,
+            'error': "An error occurred while fetching graph data",
+            'traceback': "",
             'type': type(e).__name__
         }), 500
 
@@ -193,8 +193,8 @@ def api_vertex_types():
         logger.error("API error:")
         logger.error(error_msg)
         return jsonify({
-            'error': str(e),
-            'traceback': error_trace,
+            'error': "An error occurred while fetching vertex types",
+            'traceback': "",
             'type': type(e).__name__
         }), 500
 
@@ -988,7 +988,7 @@ def api_find_paths():
         logger.error("API error:")
         logger.error(error_msg)
         return jsonify({
-            'error': str(e),
-            'traceback': error_trace,
+            'error': "An error occurred while finding paths",
+            'traceback': "",
             'type': type(e).__name__
         }), 500

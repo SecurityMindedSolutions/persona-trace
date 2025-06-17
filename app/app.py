@@ -22,4 +22,4 @@ if __name__ == '__main__':
     logger.info("Initializing application...")
     app = create_app()
     logger.info("Application created successfully, starting server...")
-    app.run(debug=True, ssl_context=('test_certs/ssl_cert.pem', 'test_certs/ssl_key.pem'), host='0.0.0.0', port=5500)
+    app.run(ssl_context=('test_certs/ssl_cert.pem', 'test_certs/ssl_key.pem'), host='0.0.0.0', port=5500)
