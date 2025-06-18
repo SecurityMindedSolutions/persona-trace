@@ -210,10 +210,13 @@ def main():
     # Clear the graph
     ################################################################################################
     try:
-        with console.status("[bold green]Clearing existing graph data...", spinner="dots") as status:
-            with driver.session() as session:
-                session.run("MATCH (n) DETACH DELETE n")
-        logger.info("Graph cleared successfully")
+        if args.clear_graph:
+            with console.status("[bold green]Clearing existing graph data...", spinner="dots") as status:
+                with driver.session() as session:
+                    session.run("MATCH (n) DETACH DELETE n")
+            logger.info("Graph cleared successfully")
+        else:
+            logger.info("Skipping graph clearing")
     except Exception as e:
         logger.error(f"Error clearing graph data: {str(e)}")
         raise

@@ -7,6 +7,7 @@ parser = argparse.ArgumentParser(description='Load data into graph database')
 # Data source
 ########################################################
 group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument('--clear_graph', action='store_true', help='Delete graph data before loading')
 group.add_argument('--example_data', action='store_true', help='Load example data')
 group.add_argument('--live_data', action='store_true', help='Load live data')
 parser.add_argument('--neo4j_endpoint', type=str, help='Neo4j endpoint', default='bolt://localhost:7687')

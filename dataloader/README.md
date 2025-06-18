@@ -77,6 +77,7 @@ The data loader requires specifying:
 - `--live_data`: Loads real observations from the `data/live_data` folder
 
 Optional parameters:
+- `--clear_graph`: Deletes current data in the graph before loading the new data
 - `--example_data_folder`: Override default example data folder path
 - `--live_data_folder`: Override default live data folder path
 
