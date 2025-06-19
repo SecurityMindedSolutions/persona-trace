@@ -22,17 +22,17 @@ Each observation must contain:
 
 #### Optional Fields
 
-##### Vertices - without vertices there's not really a point to an observation :-)
-- `vertices.names` (array<string>): List of associated names
-- `vertices.online_identifiers` (array<object>): Online identifiers with:
+##### Nodes - without nodes there's not really a point to an observation :-)
+- `nodes.names` (array<string>): List of associated names
+- `nodes.online_identifiers` (array<object>): Online identifiers with:
   - `type` (string): Identifier type (e.g., "email_address", "ip_address")
   - `value` (string): The identifier value
   - `category` (string): Usage category (e.g., "personal", "home")
-- `vertices.location_identifiers` (array<object>): Location identifiers with:
+- `nodes.location_identifiers` (array<object>): Location identifiers with:
   - `type` (string): Location type (e.g., "address", "geo_location")
   - `value` (string): The location value
   - `category` (string): Location category
-- `vertices.identity_documents` (array<object>): Identity documents with:
+- `nodes.identity_documents` (array<object>): Identity documents with:
   - `type` (string): Document type (e.g., "state_id", "passport")
   - `value` (string): Document identifier
   - `issuer` (string): Issuing authority
@@ -97,18 +97,17 @@ Required parameters:
 # Load example data into Neo4j
 uv run load_data.py \
     --example_data \
-    --database_target neo4j \
-    --neo4j_uri bolt://localhost:7687 \
-    --neo4j_user neo4j \
-    --neo4j_password your-password
+    --neo4j_endpoint bolt://localhost:7687 \
+    --neo4j_username neo4j \
+    --neo4j_password personatrace
 
 # Load live data into Neo4j
 uv run load_data.py \
     --live_data \
-    --database_target neo4j \
-    --neo4j_uri bolt://localhost:7687 \
-    --neo4j_user neo4j \
-    --neo4j_password your-password
+    --live_data_folder /some/folder/of/observations \
+    --neo4j_endpoint bolt://localhost:7687 \
+    --neo4j_username neo4j \
+    --neo4j_password personatrace
 ```
 
 ## Example Observation
@@ -119,7 +118,7 @@ uv run load_data.py \
   "id": "00000000-0000-0000-0000-000000000003",
   "source": "social_media_platform",
   "observation_date": "2023-05-12",
-  "vertices": {
+  "nodes": {
     "names": [
       "Michael Wilson"
     ],

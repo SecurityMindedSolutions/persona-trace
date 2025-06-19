@@ -150,7 +150,6 @@ def process_batch(driver, batch):
                     RETURN count(n)
                 """
                 session.run(query, rows=nodes)
-            logger.debug(f"Bulk created nodes for {len(nodes_by_label)} labels")
 
             # ───────────────────── split relationships by type ────────────────────────
             has_obs, other_rels = [], []
