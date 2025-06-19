@@ -4,38 +4,20 @@ This directory contains instructions and configuration for setting up a local Ne
 
 ## Quick Start
 
-1. Create directories:
+**Important**: PersonaTrace requires the APOC plugin for bulk insertions. Use the provided setup script to ensure proper installation. There are heap configurations in the conf file insertion that you may want to change depending on the machine you are using.
+
+1. From the folder you want your Neo4j data and configurations stored, run the Neo4j setup script:
 ```bash
-mkdir -p data logs conf import plugins
+chmod +x neo4j-setup.sh
+sudo ./neo4j-setup.sh
 ```
 
-2. Start Neo4j:
-### Start with no saved state
-```bash
-docker run -d \
-  --name personatrace-neo4j \
-  -p 7474:7474 \
-  -p 7687:7687 \
-  -e NEO4J_AUTH=neo4j/personatrace \
-  neo4j:latest
-```
+This script will:
+- Create the necessary directories
+- Start Neo4j with the required APOC plugin installed
+- Configure the database for optimal performance with PersonaTrace
 
-### Start with saved state
-```bash
-docker run -d \
-  --name personatrace-neo4j \
-  -p 7474:7474 \
-  -p 7687:7687 \
-  -v "$(pwd)/data:/data" \
-  -v "$(pwd)/logs:/logs" \
-  -v "$(pwd)/conf:/conf" \
-  -v "$(pwd)/import:/var/lib/neo4j/import" \
-  -v "$(pwd)/plugins:/plugins" \
-  -e NEO4J_AUTH=neo4j/personatrace \
-  neo4j:latest
-```
-
-3. Access Neo4j Browser: [http://localhost:7474](http://localhost:7474)
+2. Access Neo4j Browser: [http://localhost:7474](http://localhost:7474)
    - Username: `neo4j`
    - Password: `personatrace`
 

@@ -1,5 +1,5 @@
 {
-    "vertex_type": "string",
+    "node_type": "string",
     "id": "string (UUID)", 
     "source": "string",
     "observation_date": "string (YYYY-MM-DD)",

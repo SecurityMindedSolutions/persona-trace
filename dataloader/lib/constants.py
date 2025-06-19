@@ -13,7 +13,7 @@ parser.add_argument('--clear_graph', action='store_true', help='Delete graph dat
 parser.add_argument('--neo4j_endpoint', type=str, help='Neo4j endpoint', default='bolt://localhost:7687')
 parser.add_argument('--neo4j_username', type=str, help='Neo4j username', default='neo4j')
 parser.add_argument('--neo4j_password', type=str, help='Neo4j password', default='personatrace')
-parser.add_argument('--batch_size', type=int, help='Batch size of observations to process at a time', default=100)
+parser.add_argument('--batch_size', type=int, help='Batch size of observations to process at a time', default=50)
 parser.add_argument('--example_data_folder', type=str, help='Full folder path for example data if not in data/example_data')
 parser.add_argument('--live_data_folder', type=str, help='Full folder path for live data if not in data/live_data')
 args = parser.parse_args()
@@ -61,37 +61,37 @@ console = Console()
 
 
 ########################################################
-# Vertex types
+# Node types
 ########################################################
-VERTEX_SCHEMAS = {
+NODE_SCHEMAS = {
     'source': {
-        'vertex_type': 'source',
+        'node_type': 'source',
         'value_field': 'value',
-        'edge_type': 'observed_in',
+        'relationship_type': 'observed_in',
         'properties': ['value']
     },
     'names': {
-        'vertex_type': 'name',
+        'node_type': 'name',
         'value_field': 'value',
-        'edge_type': 'has_name',
+        'relationship_type': 'has_name',
         'properties': ['value']
     },
     'online_identifiers': {
-        'vertex_type': 'dynamic',  # Will use the 'type' field from each object
+        'node_type': 'dynamic',  # Will use the 'type' field from each object
         'value_field': 'value', 
-        'edge_type': 'dynamic',  # Will use 'has_' + type field
+        'relationship_type': 'dynamic',  # Will use 'has_' + type field
         'properties': ['value', 'category', 'type']
     },
     'location_identifiers': {
-        'vertex_type': 'dynamic',  # Will use the 'type' field from each object
+        'node_type': 'dynamic',  # Will use the 'type' field from each object
         'value_field': 'value',
-        'edge_type': 'dynamic',  # Will use 'has_' + type field
+        'relationship_type': 'dynamic',  # Will use 'has_' + type field
         'properties': ['value', 'category', 'type']
     },
     'identity_documents': {
-        'vertex_type': 'identity_document',
+        'node_type': 'identity_document',
         'value_field': 'value', 
-        'edge_type': 'has_identity_document',
+        'relationship_type': 'has_identity_document',
         'properties': ['value', 'type', 'issuer']
     }
 }

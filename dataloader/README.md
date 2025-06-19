@@ -15,7 +15,7 @@ The observation schema is defined in [observation_schema.json](data/observation_
 #### Required Fields
 
 Each observation must contain:
-- `vertex_type` (string): Always "observation_of_identity"
+- `node_type` (string): Always "observation_of_identity"
 - `id` (string): Unique UUID identifier
 - `source` (string): Data source identifier
 - `observation_date` (string): Date in YYYY-MM-DD format
@@ -115,7 +115,7 @@ uv run load_data.py \
 
 ```json
 {
-  "vertex_type": "observation_of_identity",
+  "node_type": "observation_of_identity",
   "id": "00000000-0000-0000-0000-000000000003",
   "source": "social_media_platform",
   "observation_date": "2023-05-12",

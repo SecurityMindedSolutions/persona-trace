@@ -179,7 +179,7 @@ def api_node_types():
             ORDER BY label
             """
             result = session.run(label_query)
-            labels = [record["label"] for record in result if record["label"] != "observation_of_identity"]
+            labels = [record["label"] for record in result if record["label"] not in ["observation_of_identity", "source", "online_identifiers", "location_identifiers", "identity_documents"]]
             
             logger.info(f"Found {len(labels)} node types: {labels}")
             
@@ -522,7 +522,7 @@ def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only
                 MATCH (start)
                 WHERE elementId(start) IN $initial_ids
                 WITH start
-                MATCH (start)-[*1..{num_hops}]-(connected)
+                MATCH (start)-[*0..{num_hops}]-(connected)
                 RETURN DISTINCT connected
                 """
                 
@@ -565,7 +565,7 @@ def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only
                     # Count observations for this node
                     num_observations = 1  # Default for observation nodes
                     flat = flatten_properties(v)
-                    tooltip = '\n'.join(f"{k}: {v}" for k, v in sorted(flat.items()))
+                    tooltip = '\n'.join(f"{k}: {v}" if not k.endswith('_identifiers') else f"{k}:\n{v}" for k, v in sorted(flat.items()))
                 else:
                     value = v.get('value', v_id)
 

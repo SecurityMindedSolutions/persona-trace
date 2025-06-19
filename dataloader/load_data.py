@@ -13,7 +13,9 @@ The output should be new line delimited json objects with one observation per li
 
 from neo4j import GraphDatabase
 import json
+import time
 from pathlib import Path
+from collections import defaultdict
 
 # Import internal libs
 from lib.constants import (
@@ -28,8 +30,8 @@ from lib.constants import (
     NEO4J_ENDPOINT,
     NEO4J_USERNAME,
     NEO4J_PASSWORD,
-    # Vertex schemas
-    VERTEX_SCHEMAS,
+    # Node schemas
+    NODE_SCHEMAS,
     # Batch configuration
     BATCH_SIZE,
 )
@@ -38,140 +40,168 @@ from lib.json_operations import deep_flatten
 from lib.file_operations import get_all_files
 
 
+def create_indexes(driver):
+    # Create indexes for all node types
+    with driver.session() as session:
+        for node_type in NODE_SCHEMAS.keys():
+            session.run(f"CREATE INDEX IF NOT EXISTS FOR (n:{node_type}) ON (n.value)")
+    logger.info("Indexes created for all node types")
+
 def process_batch(driver, batch):
-    """Process a batch of observations, creating vertices and edges"""
+    """Process a batch of observations, creating nodes and relationships in bulk"""
+    start_time = time.time()
     try:
         with driver.session() as session:
+            all_nodes = []
+            all_relationships = []
+
             for observation in batch:
-                ############################################################################################
-                # Required field validation
-                ############################################################################################
-                # Check that the observation has all required fields
-                required_fields = ['vertex_type', 'id', 'source', 'observation_date']
+                # --- Validate required fields ---
+                required_fields = ['node_type', 'id', 'source', 'observation_date']
                 for field in required_fields:
                     if field not in observation:
                         logger.error(f"Observation missing required field: {field}")
                         raise Exception(f"Observation missing required field: {field}")
-                    
 
-                ############################################################################################
-                # Process observation vertex
-                ############################################################################################
-                # Create observation vertex with all properties
+                # --- Build observation node ---
                 obs_properties = {
                     'id': observation['id'],
                     'source': observation['source'],
                     'observation_date': observation['observation_date'],
-                    'value': observation['id']  # Use ID as the value for observations
+                    'value': observation['id']
                 }
-                
-                # Add all properties from the observation to the vertex
+
                 for key, value in observation.items():
                     if isinstance(value, (str, int, float, bool)):
                         obs_properties[key] = value
                     elif isinstance(value, dict):
-                        flat_dict = deep_flatten(value, parent_key=key)
-                        obs_properties.update(flat_dict)
+                        obs_properties.update(deep_flatten(value, parent_key=key))
                     elif isinstance(value, list):
                         obs_properties[key] = json.dumps(value)
-                
-                # Add all metadata properties to the observation vertex
+
                 if 'metadata' in observation:
-                    flat_metadata = deep_flatten(observation['metadata'], parent_key='metadata')
-                    obs_properties.update(flat_metadata)
-                    logger.debug(f"Added metadata properties to observation vertex")
-                
-                # Create the observation vertex
-                create_obs_query = f"""
-                CREATE (o:{observation['vertex_type']} $properties)
-                RETURN o
-                """
-                result = session.run(create_obs_query, properties=obs_properties)
-                observation_vertex = result.single()['o']
-                logger.debug(f"Created observation vertex: {observation_vertex['id']}")
+                    obs_properties.update(deep_flatten(observation['metadata'], parent_key='metadata'))
 
-                ############################################################################################
-                # Create source vertex from observation's source field
-                ############################################################################################
-                # Create source vertex
-                source_value = observation['source']
-                source_properties = {'value': source_value}
-                
-                # Merge source vertex (create if doesn't exist)
-                merge_source_query = """
-                MERGE (s:source {value: $value})
-                SET s += $properties
-                RETURN s
-                """
-                session.run(merge_source_query, value=source_value, properties=source_properties)
-                
-                # Create edge FROM source TO observation
-                create_source_edge_query = """
-                MATCH (s:source {value: $source_value})
-                MATCH (o:observation_of_identity {id: $obs_id})
-                MERGE (s)-[r:has_observation]->(o)
-                RETURN r
-                """
-                session.run(create_source_edge_query, source_value=source_value, obs_id=observation['id'])
-                logger.debug(f"Created source vertex and edge: {source_value} -> {observation['id']}")
+                all_nodes.append({
+                    'labels': [observation['node_type']],
+                    'properties': obs_properties
+                })
 
-                ############################################################################################
-                # Process other vertices and edges
-                ############################################################################################
-                for vertex_type, config in VERTEX_SCHEMAS.items():
-                    # Skip source vertices as they're handled above
-                    if vertex_type == 'source':
+                # --- Source node and relationship ---
+                source_val = observation['source']
+                all_nodes.append({
+                    'labels': ['source'],
+                    'properties': {'value': source_val}
+                })
+                all_relationships.append({
+                    'start_node': {'labels': ['source'], 'properties': {'value': source_val}},
+                    'end_node': {'labels': [observation['node_type']], 'properties': {'id': observation['id']}},
+                    'type': 'has_observation'
+                })
+
+                # --- Other node types from schema ---
+                for node_type, config in NODE_SCHEMAS.items():
+                    if node_type == 'source':
                         continue
-                        
-                    # Only process vertices that are in the observation
-                    if vertex_type in observation['vertices']:
-                        for vertex in observation['vertices'][vertex_type]:
-                            # Handle different vertex types
-                            if vertex_type == 'names':
-                                # Names are just strings, not objects
-                                value = vertex  # vertex is the string value
-                                vertex_properties = {'value': value}
-                                actual_vertex_type = config['vertex_type']
-                                actual_edge_type = config['edge_type']
+                    values = observation.get('vertices', {}).get(node_type, [])
+                    for node in values:
+                        if node_type == 'names':
+                            value = node
+                            node_props = {'value': value}
+                            label = config['node_type']
+                            rel_type = config['relationship_type']
+                        else:
+                            value = node.get(config['value_field'])
+                            node_props = {k: node.get(k) for k in config['properties'] if k in node}
+                            if config['node_type'] == 'dynamic':
+                                label = node.get('type')
+                                rel_type = f"has_{label}"
                             else:
-                                # Other vertex types are objects with properties
-                                value = vertex[config['value_field']]
-                                vertex_properties = {}
-                                for prop in config['properties']:
-                                    if prop in vertex:
-                                        vertex_properties[prop] = vertex[prop]
-                                    elif prop == config['value_field']:
-                                        vertex_properties[prop] = value
-                                
-                                # Handle dynamic vertex types
-                                if config['vertex_type'] == 'dynamic':
-                                    actual_vertex_type = vertex['type']
-                                    actual_edge_type = f"has_{vertex['type']}"
-                                else:
-                                    actual_vertex_type = config['vertex_type']
-                                    actual_edge_type = config['edge_type']
-                            
-                            # Merge vertex (create if doesn't exist)
-                            merge_vertex_query = f"""
-                            MERGE (v:{actual_vertex_type} {{ {config['value_field']}: $value }})
-                            SET v += $properties
-                            RETURN v
-                            """
-                            session.run(merge_vertex_query, value=value, properties=vertex_properties)
-                            
-                            # Create edge FROM observation TO vertex
-                            create_edge_query = f"""
-                            MATCH (o:{observation['vertex_type']} {{id: $obs_id}})
-                            MATCH (v:{actual_vertex_type} {{ {config['value_field']}: $value }})
-                            MERGE (o)-[r:{actual_edge_type}]->(v)
-                            RETURN r
-                            """
-                            session.run(create_edge_query, obs_id=observation['id'], value=value)
-                
-            logger.info(f"Successfully processed batch of {len(batch)} observations")
+                                label = config['node_type']
+                                rel_type = config['relationship_type']
+
+                        all_nodes.append({
+                            'labels': [label],
+                            'properties': {config['value_field']: value, **node_props}
+                        })
+                        all_relationships.append({
+                            'start_node': {'labels': [observation['node_type']], 'properties': {'id': observation['id']}},
+                            'end_node': {'labels': [label], 'properties': {config['value_field']: value}},
+                            'type': rel_type
+                        })
+
+            # --- Bulk node creation ---
+            nodes_by_label = defaultdict(list)
+            for node in all_nodes:
+                label = node['labels'][0]
+                nodes_by_label[label].append(node['properties'])
+
+            bulk_node_data = [
+                {"label": label, "props": props}
+                for label, props_list in nodes_by_label.items()
+                for props in props_list
+            ]
+
+            node_query = """
+            UNWIND $data as row
+            CALL apoc.merge.node([row.label], row.props) YIELD node
+            SET node += row.props
+            """
+            session.run(node_query, data=bulk_node_data)
+            logger.debug(f"Bulk created {len(bulk_node_data)} nodes total")
+
+            # --- Bulk relationship creation ---
+            has_obs_rels = []
+            obs_to_entity_rels = []
+            for rel in all_relationships:
+                if rel['type'] == 'has_observation':
+                    has_obs_rels.append({
+                        'start_val': rel['start_node']['properties']['value'],
+                        'end_id': rel['end_node']['properties']['id']
+                    })
+                else:
+                    end_label = rel['end_node']['labels'][0]
+                    end_key, end_val = list(rel['end_node']['properties'].items())[0]
+                    obs_to_entity_rels.append({
+                        'type': rel['type'],
+                        'start_id': rel['start_node']['properties']['id'],
+                        'end_label': end_label,
+                        'end_key': end_key,
+                        'end_val': end_val,
+                        'properties': rel.get('properties', {})
+                    })
+
+            if has_obs_rels:
+                rel_query = """
+                UNWIND $rels as rel
+                MATCH (start:source {value: rel.start_val})
+                MATCH (end:observation_of_identity {id: rel.end_id})
+                CREATE (start)-[:has_observation]->(end)
+                """
+                session.run(rel_query, rels=has_obs_rels)
+
+            grouped = defaultdict(list)
+            for rel in obs_to_entity_rels:
+                key = (rel['type'], rel['end_label'], rel['end_key'])
+                grouped[key].append(rel)
+
+            for (rel_type, end_label, end_key), rels in grouped.items():
+                rel_query = f"""
+                UNWIND $rels as rel
+                MATCH (start:observation_of_identity {{id: rel.start_id}})
+                MATCH (end:{end_label} {{{end_key}: rel.end_val}})
+                CREATE (start)-[r:{rel_type}]->(end)
+                SET r += rel.properties
+                """
+                session.run(rel_query, rels=rels)
+
+        processing_time = time.time() - start_time
+        return len(batch), processing_time
+
     except Exception as e:
         logger.error(f"Error processing batch: {str(e)}")
         raise
+
 
 
 def main():
@@ -211,17 +241,42 @@ def main():
     ################################################################################################
     try:
         if args.clear_graph:
-            with console.status("[bold green]Clearing existing graph data...", spinner="dots") as status:
-                with driver.session() as session:
-                    session.run("MATCH (n) DETACH DELETE n")
-            logger.info("Graph cleared successfully")
+            confirmation = input("Are you sure you want to clear all graph data? This cannot be undone. (y/N): ")
+            if confirmation.lower() == 'y':
+                with console.status("[bold green]Clearing existing graph data...", spinner="dots") as status:
+                    with driver.session() as session:
+                        # Drop all constraints
+                        result = session.run("SHOW CONSTRAINTS")
+                        for record in result:
+                            name = record["name"]
+                            session.run(f"DROP CONSTRAINT {name}")
+
+                        # Drop all indexes
+                        result = session.run("SHOW INDEXES")
+                        for record in result:
+                            name = record["name"]
+                            session.run(f"DROP INDEX {name}")
+
+                        # Delete all nodes and relationships
+                        session.run("MATCH (n) DETACH DELETE n")
+
+                logger.info("Graph cleared successfully - all data, constraints, and indexes removed.")
+            else:
+                logger.info("Graph clearing cancelled by user.")
         else:
             logger.info("Skipping graph clearing")
     except Exception as e:
         logger.error(f"Error clearing graph data: {str(e)}")
         raise
 
-    # Process each file
+    ################################################################################################
+    # Create indexes
+    ################################################################################################
+    create_indexes(driver)
+
+    ################################################################################################
+    # Process each file 
+    ################################################################################################
     for observations_file in files:
         logger.info(f"Processing file: {observations_file}")
     
@@ -229,6 +284,9 @@ def main():
             # Process observations in batches
             current_batch = []
             batch_counter = 0
+            total_start_time = time.time()
+            total_processed = 0
+            
             with open(observations_file, 'r') as f:
                 # Count the number of lines in the file
                 num_lines = sum(1 for _ in f)
@@ -249,7 +307,28 @@ def main():
                             start_obs = (batch_counter - 1) * BATCH_SIZE + 1
                             end_obs = min(batch_counter * BATCH_SIZE, num_lines)
                             logger.info(f"Processing batch {batch_counter}/{total_batches} (observations {start_obs}-{end_obs} of {num_lines})...")
-                            process_batch(driver, current_batch)
+                            num_nodes, processing_time = process_batch(driver, current_batch)
+                            total_processed += num_nodes
+                            
+                            # Calculate ETA
+                            elapsed_time = time.time() - total_start_time
+                            avg_time_per_observation = elapsed_time / total_processed
+                            remaining_observations = num_lines - total_processed
+                            eta_seconds = remaining_observations * avg_time_per_observation
+                            
+                            # Format ETA
+                            if eta_seconds < 60:
+                                eta_str = f"{eta_seconds:.1f}s"
+                            elif eta_seconds < 3600:
+                                eta_str = f"{eta_seconds/60:.1f}m"
+                            else:
+                                eta_str = f"{eta_seconds/3600:.1f}h"
+                            
+                            # Calculate average insertions per second
+                            insertions_per_second = total_processed / elapsed_time
+                            
+                            logger.info(f"Successfully processed batch of {num_nodes} observations in {processing_time:.2f}s. "
+                                      f"Avg: {insertions_per_second:.1f} obs/sec. ETA: {eta_str}")
                             current_batch = []
                             
                     except json.JSONDecodeError as je:
@@ -266,7 +345,16 @@ def main():
                     start_obs = (batch_counter - 1) * BATCH_SIZE + 1
                     end_obs = num_lines
                     logger.info(f"Processing final batch {batch_counter}/{total_batches} (observations {start_obs}-{end_obs} of {num_lines})...")
-                    process_batch(driver, current_batch)
+                    num_nodes, processing_time = process_batch(driver, current_batch)
+                    total_processed += num_nodes
+                    
+                    # Calculate final stats
+                    elapsed_time = time.time() - total_start_time
+                    insertions_per_second = total_processed / elapsed_time
+                    
+                    logger.info(f"Successfully processed final batch of {num_nodes} observations in {processing_time:.2f}s. "
+                              f"Total: {total_processed} observations in {elapsed_time:.2f}s. "
+                              f"Final avg: {insertions_per_second:.1f} obs/sec")
             
             # Print summary
             logger.info("Final Graph State:")
