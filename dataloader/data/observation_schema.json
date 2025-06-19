@@ -4,7 +4,7 @@
     "source": "string",
     "observation_date": "string (YYYY-MM-DD)",
 
-    "vertices": {
+    "nodes": {
         "names": "array<string>",
     
         "online_identifiers": "array<object>{
