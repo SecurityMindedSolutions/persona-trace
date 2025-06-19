@@ -6,9 +6,12 @@ parser = argparse.ArgumentParser(description='Load data into graph database')
 ########################################################
 # Data source
 ########################################################
+# Data source
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument('--example_data', action='store_true', help='Load example data')
 group.add_argument('--live_data', action='store_true', help='Load live data')
+# Other arguments
+parser.add_argument('--debug', action='store_true', help='Debug mode')
 parser.add_argument('--clear_graph', action='store_true', help='Delete graph data before loading')
 parser.add_argument('--neo4j_endpoint', type=str, help='Neo4j endpoint', default='bolt://localhost:7687')
 parser.add_argument('--neo4j_username', type=str, help='Neo4j username', default='neo4j')
@@ -54,7 +57,7 @@ handler.setFormatter(colorlog.ColoredFormatter(
     }
 ))
 logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
 # Install rich traceback handling
 install(show_locals=True)
 console = Console()
@@ -64,6 +67,12 @@ console = Console()
 # Node types
 ########################################################
 NODE_SCHEMAS = {
+    'observation_of_identity': {
+        'node_type': 'observation_of_identity',
+        'value_field': 'id',
+        'relationship_type': 'has_observation',
+        'properties': ['id', 'source', 'observation_date']
+    },
     'source': {
         'node_type': 'source',
         'value_field': 'value',

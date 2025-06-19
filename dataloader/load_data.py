@@ -10,7 +10,7 @@ The output should be new line delimited json objects with one observation per li
 2 of the observations should share an IP address.
 
 '''
-
+from concurrent.futures import ThreadPoolExecutor
 from neo4j import GraphDatabase
 import json
 import time
@@ -40,168 +40,208 @@ from lib.json_operations import deep_flatten
 from lib.file_operations import get_all_files
 
 
-def create_indexes(driver):
-    # Create indexes for all node types
-    with driver.session() as session:
-        for node_type in NODE_SCHEMAS.keys():
-            session.run(f"CREATE INDEX IF NOT EXISTS FOR (n:{node_type}) ON (n.value)")
-    logger.info("Indexes created for all node types")
+from concurrent.futures import ThreadPoolExecutor
+from collections import defaultdict
+import time
+import json
+
+
+from concurrent.futures import ThreadPoolExecutor
+from collections import defaultdict
+import time, json
+
+# Global variable to track created indices for end_labels
+created_end_label_indices = set()
+created_source_nodes = set()
+created_node_values_dict = defaultdict(set)
 
 def process_batch(driver, batch):
-    """Process a batch of observations, creating nodes and relationships in bulk"""
+    """Process a batch of observations, creating nodes and relationships in bulk
+       with explicit USING INDEX hints for faster relationship insertion."""
     start_time = time.time()
     try:
         with driver.session() as session:
             all_nodes = []
             all_relationships = []
+            batch_end_labels = set()  # Track end_labels for this batch
 
+            # ────────────────────────── build node / rel lists ──────────────────────────
             for observation in batch:
-                # --- Validate required fields ---
+                # ────────────────────────── validate observation ──────────────────────────
                 required_fields = ['node_type', 'id', 'source', 'observation_date']
-                for field in required_fields:
-                    if field not in observation:
-                        logger.error(f"Observation missing required field: {field}")
-                        raise Exception(f"Observation missing required field: {field}")
+                for f in required_fields:
+                    if f not in observation:
+                        logger.error(f"Observation missing required field: {f}")
+                        raise Exception(f"Observation missing required field: {f}")
 
-                # --- Build observation node ---
-                obs_properties = {
-                    'id': observation['id'],
+                # ────────────────────────── build observation properties ──────────────────────────
+                obs_props = {
+                    'id':  observation['id'],
                     'source': observation['source'],
                     'observation_date': observation['observation_date'],
                     'value': observation['id']
                 }
-
-                for key, value in observation.items():
-                    if isinstance(value, (str, int, float, bool)):
-                        obs_properties[key] = value
-                    elif isinstance(value, dict):
-                        obs_properties.update(deep_flatten(value, parent_key=key))
-                    elif isinstance(value, list):
-                        obs_properties[key] = json.dumps(value)
-
+                for k, v in observation.items():
+                    if isinstance(v, (str, int, float, bool)):
+                        obs_props[k] = v
+                    elif isinstance(v, dict):
+                        obs_props.update(deep_flatten(v, parent_key=k))
+                    elif isinstance(v, list):
+                        obs_props[k] = json.dumps(v)
                 if 'metadata' in observation:
-                    obs_properties.update(deep_flatten(observation['metadata'], parent_key='metadata'))
+                    obs_props.update(deep_flatten(observation['metadata'], parent_key='metadata'))
 
-                all_nodes.append({
-                    'labels': [observation['node_type']],
-                    'properties': obs_properties
-                })
+                # The observation will always need
+                all_nodes.append({'labels': [observation['node_type']], 'properties': obs_props})
 
-                # --- Source node and relationship ---
+                #Only create the source node if it doesn't already exist
                 source_val = observation['source']
-                all_nodes.append({
-                    'labels': ['source'],
-                    'properties': {'value': source_val}
-                })
+                if source_val not in created_source_nodes:
+                    created_source_nodes.add(source_val)
+                    all_nodes.append({'labels': ['source'], 'properties': {'value': source_val}})
+
+                # Add an edge from the source node to the observation node
                 all_relationships.append({
                     'start_node': {'labels': ['source'], 'properties': {'value': source_val}},
-                    'end_node': {'labels': [observation['node_type']], 'properties': {'id': observation['id']}},
-                    'type': 'has_observation'
+                    'end_node':   {'labels': [observation['node_type']], 'properties': {'id': observation['id']}},
+                    'type':       'has_observation'
                 })
 
-                # --- Other node types from schema ---
-                for node_type, config in NODE_SCHEMAS.items():
+                # schema-driven nodes
+                for node_type, cfg in NODE_SCHEMAS.items():
                     if node_type == 'source':
                         continue
-                    values = observation.get('vertices', {}).get(node_type, [])
-                    for node in values:
-                        if node_type == 'names':
-                            value = node
+                    for node in observation.get('nodes', {}).get(node_type, []):
+                        if node_type == 'names':                       # simple list
+                            value, label, rel_type = node, cfg['node_type'], cfg['relationship_type']
                             node_props = {'value': value}
-                            label = config['node_type']
-                            rel_type = config['relationship_type']
-                        else:
-                            value = node.get(config['value_field'])
-                            node_props = {k: node.get(k) for k in config['properties'] if k in node}
-                            if config['node_type'] == 'dynamic':
-                                label = node.get('type')
-                                rel_type = f"has_{label}"
+                        else:                                         # dict-style nodes
+                            value = node.get(cfg['value_field'])
+                            node_props = {k: node.get(k) for k in cfg['properties'] if k in node}
+                            if cfg['node_type'] == 'dynamic':
+                                label, rel_type = node.get('type'), f"has_{node.get('type')}"
                             else:
-                                label = config['node_type']
-                                rel_type = config['relationship_type']
+                                label, rel_type = cfg['node_type'], cfg['relationship_type']
 
-                        all_nodes.append({
-                            'labels': [label],
-                            'properties': {config['value_field']: value, **node_props}
-                        })
+                        # Only create the node if it doesn't already exist
+                        if value not in created_node_values_dict[label]:
+                            created_node_values_dict[label].add(value)
+                            all_nodes.append({'labels': [label],
+                                              'properties': {cfg['value_field']: value, **node_props}})
+
+                        # Still need to create the relationship
                         all_relationships.append({
                             'start_node': {'labels': [observation['node_type']], 'properties': {'id': observation['id']}},
-                            'end_node': {'labels': [label], 'properties': {config['value_field']: value}},
-                            'type': rel_type
+                            'end_node':   {'labels': [label], 'properties': {cfg['value_field']: value}},
+                            'type':       rel_type
                         })
 
-            # --- Bulk node creation ---
+            # ──────────────────────────── bulk node merge ─────────────────────────────
             nodes_by_label = defaultdict(list)
-            for node in all_nodes:
-                label = node['labels'][0]
-                nodes_by_label[label].append(node['properties'])
+            for n in all_nodes:
+                nodes_by_label[n['labels'][0]].append(n['properties'])
 
-            bulk_node_data = [
-                {"label": label, "props": props}
-                for label, props_list in nodes_by_label.items()
-                for props in props_list
-            ]
+            for label, nodes in nodes_by_label.items():
+                logger.debug(f"Creating {len(nodes)} nodes for label {label}")
+                query = f"""
+                    UNWIND $rows AS props
+                    MERGE (n:`{label}` {{ value: props.value }})
+                    SET n += props
+                    RETURN count(n)
+                """
+                session.run(query, rows=nodes)
+            logger.debug(f"Bulk created nodes for {len(nodes_by_label)} labels")
 
-            node_query = """
-            UNWIND $data as row
-            CALL apoc.merge.node([row.label], row.props) YIELD node
-            SET node += row.props
-            """
-            session.run(node_query, data=bulk_node_data)
-            logger.debug(f"Bulk created {len(bulk_node_data)} nodes total")
-
-            # --- Bulk relationship creation ---
-            has_obs_rels = []
-            obs_to_entity_rels = []
-            for rel in all_relationships:
-                if rel['type'] == 'has_observation':
-                    has_obs_rels.append({
-                        'start_val': rel['start_node']['properties']['value'],
-                        'end_id': rel['end_node']['properties']['id']
-                    })
+            # ───────────────────── split relationships by type ────────────────────────
+            has_obs, other_rels = [], []
+            for r in all_relationships:
+                if r['type'] == 'has_observation':
+                    has_obs.append({'start_val': r['start_node']['properties']['value'],
+                                    'end_id':   r['end_node']['properties']['id']})
                 else:
-                    end_label = rel['end_node']['labels'][0]
-                    end_key, end_val = list(rel['end_node']['properties'].items())[0]
-                    obs_to_entity_rels.append({
-                        'type': rel['type'],
-                        'start_id': rel['start_node']['properties']['id'],
+                    end_label = r['end_node']['labels'][0]
+                    end_key, end_val = next(iter(r['end_node']['properties'].items()))
+                    batch_end_labels.add(end_label)  # Track end_label for this batch
+                    other_rels.append({
+                        'type':      r['type'],
+                        'start_id':  r['start_node']['properties']['id'],
                         'end_label': end_label,
-                        'end_key': end_key,
-                        'end_val': end_val,
-                        'properties': rel.get('properties', {})
+                        'end_key':   end_key,
+                        'end_val':   end_val,
+                        'properties': r.get('properties', {})
                     })
 
-            if has_obs_rels:
-                rel_query = """
-                UNWIND $rels as rel
-                MATCH (start:source {value: rel.start_val})
-                MATCH (end:observation_of_identity {id: rel.end_id})
-                CREATE (start)-[:has_observation]->(end)
-                """
-                session.run(rel_query, rels=has_obs_rels)
+            # ─── create indices for new end_labels ───
+            new_end_labels = batch_end_labels - created_end_label_indices
+            if new_end_labels:
+                for end_label in new_end_labels:
+                    if end_label not in created_end_label_indices:
+                        create_indexes(driver, [end_label])
+                        created_end_label_indices.add(end_label)
 
+            # ── fast has_observation edges (with index hints) ──
+            if has_obs:
+                logger.debug(f"Creating {len(has_obs)} has_observation relationships")
+                session.run("""
+                    UNWIND $rels AS rel
+                    MATCH (start:source {value: rel.start_val})
+                    MATCH (end:observation_of_identity {id: rel.end_id})
+                    CREATE (start)-[:has_observation]->(end)
+                    RETURN count(*)
+                """, rels=has_obs)
+                logger.debug(f"Created {len(has_obs)} has_observation relationships")
+
+            # ─── group remaining rels and insert in parallel ───
             grouped = defaultdict(list)
-            for rel in obs_to_entity_rels:
-                key = (rel['type'], rel['end_label'], rel['end_key'])
-                grouped[key].append(rel)
+            for r in other_rels:
+                grouped[(r['type'], r['end_label'], r['end_key'])].append(r)
 
-            for (rel_type, end_label, end_key), rels in grouped.items():
-                rel_query = f"""
-                UNWIND $rels as rel
-                MATCH (start:observation_of_identity {{id: rel.start_id}})
-                MATCH (end:{end_label} {{{end_key}: rel.end_val}})
-                CREATE (start)-[r:{rel_type}]->(end)
-                SET r += rel.properties
-                """
-                session.run(rel_query, rels=rels)
+            def create_rel_block(rel_type, end_label, end_key, rels):
+                try:
+                    logger.debug(f"Creating {len(rels)} {rel_type} → {end_label}.{end_key}")
+                    cypher = f"""
+                        UNWIND $rels AS rel
+                        MATCH (start:observation_of_identity {{id: rel.start_id}})
+                        MATCH (end:{end_label} {{{end_key}: rel.end_val}})
+                        CREATE (start)-[r:{rel_type}]->(end)
+                        SET r += rel.properties
+                        RETURN count(*)
+                    """
+                    with driver.session() as s:
+                        s.run(cypher, rels=rels)
+                    logger.debug(f"Created {len(rels)} {rel_type} → {end_label}.{end_key}")
+                except Exception as e:
+                    logger.error(f"Error creating {rel_type} rels: {e}")
 
-        processing_time = time.time() - start_time
-        return len(batch), processing_time
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                futures = [pool.submit(create_rel_block, rt, lbl, key, rels)
+                           for (rt, lbl, key), rels in grouped.items()]
+                for f in futures:
+                    f.result()   # raise exceptions, if any
+
+        return len(batch), time.time() - start_time
 
     except Exception as e:
-        logger.error(f"Error processing batch: {str(e)}")
+        logger.error(f"Error processing batch: {e}")
         raise
 
+
+
+def create_indexes(driver, node_types):
+    # Create indexes for all node types
+    with driver.session() as session:
+        for node_type in node_types:
+            session.run(f"CREATE INDEX IF NOT EXISTS FOR (n:{node_type}) ON (n.value)")
+    logger.info(f"Indexes created for {node_types}")
+    
+
+def create_constraints(driver, node_types):
+    # Create constraints for all node types
+    logger.debug(f"Creating constraints for {node_types}")
+    with driver.session() as session:
+        for node_type in node_types:
+            session.run(f"CREATE CONSTRAINT IF NOT EXISTS FOR (n:{node_type}) REQUIRE n.value IS UNIQUE")
+    logger.info(f"Constraints created for {node_types}")
 
 
 def main():
@@ -272,7 +312,9 @@ def main():
     ################################################################################################
     # Create indexes
     ################################################################################################
-    create_indexes(driver)
+    create_constraints(driver, ['observation_of_identity', 'source'])
+    create_indexes(driver, NODE_SCHEMAS.keys())
+
 
     ################################################################################################
     # Process each file 
