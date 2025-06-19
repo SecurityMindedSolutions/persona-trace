@@ -53,8 +53,8 @@
                     <i class="bi bi-moon-fill"></i>
                     <span>Dark Mode</span>
                 </button>
-                <span id="vertexCount">Vertices: 0</span>
-                <span id="edgeCount">Edges: 0</span>
+                <span id="nodeCount">Nodes: 0</span>
+                <span id="relationshipCount">Relationships: 0</span>
             </div>
         </div>
 
@@ -64,11 +64,12 @@
             <div class="controls-column" id="controlsColumn">
                 <!-- Controls Content -->
                 <div class="controls-content">
+                    
                     <!-- Search Section -->
                     <div class="card filters-card">
                         <div class="card-header bg-secondary-subtle" role="button" data-bs-toggle="collapse" data-bs-target="#searchCollapse" aria-expanded="true" aria-controls="searchCollapse" style="cursor: pointer;">
                             <div class="d-flex justify-content-between align-items-center">
-                                <h5 class="card-title mb-0 text-primary-emphasis">Search</h5>
+                                <h5 class="card-title mb-0 text-primary-emphasis">Node Search</h5>
                                 <div class="chevron-wrapper d-flex align-items-center">
                                     <i class="bi bi-chevron-down"></i>
                                 </div>
@@ -83,15 +84,23 @@
                                     </div>
                                     <span class="loading-text">Searching Graph...</span>
                                 </div>
-                                <div class="filter-section" style="margin-bottom: 0px;">
-                                    <div class="filter-title mb-3 text-center">Search Configuration</div>
-                                    
+                                <div class="filter-section" style="margin-bottom: 0px;">                                    
                                     <div class="row mb-3">
                                         <div class="col-12">
-                                            <label for="searchTypeSelect" class="form-label">Vertex Type</label>
+                                            <label for="searchSourceSelect" class="form-label">Sources</label>
+                                            <select class="form-select" id="searchSourceSelect" multiple>
+                                                <option value="all" selected>All Sources</option>
+                                                <!-- Source types will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <label for="searchTypeSelect" class="form-label">Node Type</label>
                                             <select class="form-select" id="searchTypeSelect">
                                                 <option value="">All Types</option>
-                                                <!-- Vertex types will be populated dynamically -->
+                                                <!-- Node types will be populated dynamically -->
                                             </select>
                                         </div>
                                     </div>
@@ -102,6 +111,8 @@
                                             <select class="form-select" id="searchOperatorSelect">
                                                 <option value="equals" selected>Equals</option>
                                                 <option value="contains">Contains</option>
+                                                <option value="starts_with">Starts With</option>
+                                                <option value="ends_with">Ends With</option>
                                             </select>
                                         </div>
                                     </div>
@@ -112,12 +123,29 @@
                                         </div>
                                     </div>
 
-                                    <div class="row">
-                                        <div class="col-4">
-                                            <label for="numHopsVertexSearch" class="form-label">Max Hops</label>
-                                            <input type="number" class="form-control" id="numHopsVertexSearch" placeholder="Hops" value="2" min="1">
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <label for="caseSensitiveSearch" class="form-label">Case Sensitive</label>
+                                            <input type="checkbox" class="form-check-input" id="caseSensitiveSearch">
                                         </div>
-                                        <div class="col-8">
+                                    </div>                                    
+
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <label for="showNodesOnlySearch" class="form-label">Only show matching nodes</label>
+                                            <input type="checkbox" class="form-check-input" id="showNodesOnlySearch">
+                                        </div>
+                                    </div>
+
+                                    <div class="row mb-3 num-hops-row">
+                                        <div>
+                                            <label for="numHopsNodeSearch" class="form-label">Hops from associated observation with correlated data</label>
+                                            <input type="number" class="form-control" id="numHopsNodeSearch" placeholder="Hops" value="0" min="0">
+                                        </div>
+                                    </div>
+
+                                    <div class="row mb-3">
+                                        <div>
                                             <label class="form-label">&nbsp;</label>
                                             <button class="btn btn-primary w-100" id="searchButton">
                                                 Search Graph
@@ -125,30 +153,40 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                <!-- Horizontal Rule -->
-                                <hr>
-
-                                <!-- Show all overlaps Section -->
-                                <div class="filter-section">
-                                    <div class="filter-title mb-3 text-center">Vertices with >= n connections to observations and out from there x hops</div>
-                                    <div class="row mb-3">
-                                        <!-- Number of connections the vertices must have -->
-                                        <div class="col-12">
-                                            <label for="numConnectionsShowAllOverlaps" class="form-label">Number of Connections</label>
-                                            <input type="number" class="form-control" id="numConnectionsShowAllOverlaps" placeholder="Number of Connections" value="3" min="1">
-                                        </div>
-                                        <!-- Number of hops from those vertices -->
-                                        <div class="col-12">
-                                            <label for="numHopsShowAllOverlaps" class="form-label">Number of Hops from those vertices</label>
-                                            <input type="number" class="form-control" id="numHopsShowAllOverlaps" placeholder="Number of Hops" value="2" min="1">
-                                        </div>
-                                    </div>
-                                    <button class="btn btn-danger w-100" id="showAllOverlapsButton">Show Overlaps</button>
-                                </div>
                             </div>
                         </div>
                     </div>
+
+                    <!-- Shared Identifier Search Section-->
+                    <div class="card filters-card">
+                        <div class="card-header bg-secondary-subtle" role="button" data-bs-toggle="collapse" data-bs-target="#sharedIdentifierSearchCollapse" aria-expanded="true" aria-controls="sharedIdentifierSearchCollapse" style="cursor: pointer;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0 text-primary-emphasis">Shared Identifier Search</h5>
+                            </div>
+                        </div>
+                        <div class="collapse show" id="sharedIdentifierSearchCollapse">
+                            <div class="card-body">
+                                <!-- Shared Identifier Search Section -->
+                                <div class="filter-section">
+                                    <div class="row mb-3">
+                                    <!-- Number of connections the nodes must have -->
+                                    <div class="col-12">
+                                        <label for="numConnectionsShowAllOverlaps" class="form-label">Number of Connections</label>
+                                        <input type="number" class="form-control" id="numConnectionsShowAllOverlaps" placeholder="Number of Connections" value="5" min="1">
+                                    </div>
+                                    <!-- Number of hops from those nodes -->
+                                    <div class="col-12">
+                                        <label for="numHopsShowAllOverlaps" class="form-label">Number of Hops from those nodes</label>
+                                            <input type="number" class="form-control" id="numHopsShowAllOverlaps" placeholder="Number of Hops" value="0" min="0">
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="btn btn-danger w-100" id="showAllOverlapsButton">Show Overlaps</button>
+                            </div>
+                        </div>
+
+                    </div>
+                    
 
                     <!-- Focus Node Section -->
                     <div class="card filters-card">
@@ -216,19 +254,19 @@
                                     </div>
                                 </div>
 
-                                <!-- Vertex Type Filters -->
+                                <!-- Node Type Filters -->
                                 <div class="filter-section">
-                                    <div class="filter-title">Vertex Types</div>
-                                    <div class="vertex-filters">
-                                        <!-- Vertex filters will be populated dynamically -->
+                                    <div class="filter-title">Node Types</div>
+                                    <div class="node-filters">
+                                        <!-- Node filters will be populated dynamically -->
                                     </div>
                                 </div>
 
-                                <!-- Edge Type Filters -->
+                                <!-- Relationship Type Filters -->
                                 <div class="filter-section">
-                                    <div class="filter-title">Edge Types</div>
-                                    <div class="edge-filters">
-                                        <!-- Edge filters will be populated dynamically -->
+                                    <div class="filter-title">Relationship Types</div>
+                                    <div class="relationship-filters">
+                                        <!-- Relationship filters will be populated dynamically -->
                                     </div>
                                 </div>
                             </div>
@@ -255,14 +293,14 @@
                                     <span class="loading-text">Loading Trace Options...</span>
                                 </div>
                                 <div class="filter-section">
-                                    <div class="filter-title">From Vertex</div>
+                                    <div class="filter-title">From Node</div>
                                     <select class="form-select mb-2" id="traceFromSelect">
-                                        <option value="">Select starting vertex...</option>
+                                        <option value="">Select starting node...</option>
                                     </select>
                                     
-                                    <div class="filter-title mt-2">To Vertex</div>
+                                    <div class="filter-title mt-2">To Node</div>
                                     <select class="form-select mb-2" id="traceToSelect">
-                                        <option value="">Select target vertex...</option>
+                                        <option value="">Select target node...</option>
                                     </select>
 
                                     <div class="filter-title mt-2">Max Depth</div>
@@ -374,11 +412,11 @@
 
             // Define default colors and styles
             const defaultStyles = {
-                vertex: {
+                node: {
                     background: '#D3D3D3',  // Light Gray
                     border: '#808080'       // Gray
                 },
-                edge: {
+                relationship: {
                     color: '#808080',       // Gray
                     width: 2,
                     dashes: false
@@ -427,7 +465,7 @@
                         }
                     },
                     font: {
-                        size: 0  // Hide edge labels
+                        size: 0  // Hide relationship labels
                     }
                 },
                 interaction: {
@@ -457,13 +495,13 @@
 
             // Create DataSets (will be populated when data loads)
             const nodes = new vis.DataSet([]);
-            const edges = new vis.DataSet([]);
+            const relationships = new vis.DataSet([]);
 
             // Create the network
             const container = document.getElementById('graph-container');
             const networkData = {
                 nodes: nodes,
-                edges: edges
+                edges: relationships
             };
             
             const network = new vis.Network(container, networkData, options);
@@ -519,17 +557,38 @@
                 
                 // Check if error alert elements exist
                 if (!alertEl || !messageEl) {
-                    console.error('Error alert elements not found:', error);
-                    // Fallback to console and alert
-                    console.error('Error:', error);
-                    alert(error);
+                    // Fallback: create a Bootstrap alert at the top of the body
+                    const fallbackAlert = document.createElement('div');
+                    fallbackAlert.className = 'alert alert-danger alert-dismissible fade show';
+                    fallbackAlert.role = 'alert';
+                    fallbackAlert.style.position = 'fixed';
+                    fallbackAlert.style.top = '80px';
+                    fallbackAlert.style.left = '50%';
+                    fallbackAlert.style.transform = 'translateX(-50%)';
+                    fallbackAlert.style.zIndex = '2000';
+                    fallbackAlert.style.minWidth = '400px';
+                    fallbackAlert.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
+                    fallbackAlert.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <span>${error}</span>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    `;
+                    document.body.appendChild(fallbackAlert);
+                    // Auto-hide after 5 seconds
+                    setTimeout(() => {
+                        if (fallbackAlert && fallbackAlert.parentNode) {
+                            fallbackAlert.parentNode.removeChild(fallbackAlert);
+                        }
+                    }, 5000);
                     return;
                 }
                 
                 // Set the error message
                 let message = error;
-                if (type === 'No initial vertices found') {
-                    message = 'No matching vertices found for your search criteria. Try adjusting your search terms.';
+                if (type === 'No initial nodes found') {
+                    message = 'No matching nodes found for your search criteria. Try adjusting your search terms.';
                 }
                 
                 messageEl.textContent = message;
@@ -545,19 +604,19 @@
                 }, 5000);
             }
 
-            // Function to load vertex types from the API
-            async function loadVertexTypes() {
+            // Function to load node types from the API
+            async function loadNodeTypes() {
                 try {
-                    // console.log('Loading vertex types...');
-                    const response = await fetch('/api/vertex-types');
+                    // console.log('Loading node types...');
+                    const response = await fetch('/api/node-types');
                     const data = await response.json();
                     
                     if (data.error) {
-                        console.error('Error loading vertex types:', data.error);
+                        console.error('Error loading node types:', data.error);
                         return;
                     }
                     
-                    // console.log('Vertex types loaded:', data.vertex_types);
+                    // console.log('Node types loaded:', data.node_types);
                     
                     // Populate the search type dropdown
                     const searchTypeSelect = document.getElementById('searchTypeSelect');
@@ -565,12 +624,12 @@
                         // Keep the "All Types" option
                         searchTypeSelect.innerHTML = '<option value="">All Types</option>';
                         
-                        // Add each vertex type as an option
-                        data.vertex_types.forEach(vertexType => {
+                        // Add each node type as an option
+                        data.node_types.forEach(nodeType => {
                             const option = document.createElement('option');
-                            option.value = vertexType;
-                            let displayText = vertexType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                            if (vertexType === 'ip_address') {
+                            option.value = nodeType;
+                            let displayText = nodeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            if (nodeType === 'ip_address') {
                                 displayText = 'IP Address';
                             }
                             option.textContent = displayText;
@@ -579,9 +638,38 @@
                     }
                     
                 } catch (error) {
-                    console.error('Error loading vertex types:', error);
+                    console.error('Error loading node types:', error);
                 }
             }
+
+            // Function to load source types from the API
+            async function loadSourceTypes() {
+                try {
+                    const response = await fetch('/api/source-types');
+                    const data = await response.json();
+
+                    if (data.error) {
+                        console.error('Error loading source types:', data.error);
+                        return;
+                    }
+
+                    // Populate the search source dropdown
+                    const searchSourceSelect = document.getElementById('searchSourceSelect');
+                    if (searchSourceSelect) {
+                        searchSourceSelect.innerHTML = '<option value="">All Sources</option>';
+
+                        data.source_types.forEach(sourceType => {
+                            const option = document.createElement('option');
+                            option.value = sourceType;
+                            option.textContent = sourceType;
+                            searchSourceSelect.appendChild(option);
+                        });
+                    }  
+                    
+                } catch (error) {
+                    console.error('Error loading source types:', error);
+                }
+            }   
 
             // Function to load graph data from the API
             async function loadGraphData(searchParams = null) {
@@ -609,9 +697,9 @@
                     
                     // Check for error response
                     if (data.error) {
-                        if (data.type === 'No initial vertices found') {
+                        if (data.type === 'No initial nodes found') {
                             // Show a more user-friendly message for no search results
-                            showError('No matching vertices found for your search criteria. Try adjusting your search terms or increasing the number of hops.', 'No initial vertices found');
+                            showError('No matching nodes found for your search criteria. Try adjusting your search terms.', 'No initial nodes found');
                         } else {
                             showError(data.error, data.type);
                         }
@@ -623,27 +711,30 @@
                     // Store the data globally
                     graphData = data;
                     
-                    // Clear existing nodes and edges
+                    // Clear existing nodes and relationships
                     nodes.clear();
-                    edges.clear();
+                    relationships.clear();
                     
-                    // Check if we have any vertices to process
-                    if (!data.vertices || data.vertices.length === 0) {
+                    // Check if we have any nodes to process
+                    if (!data.nodes || data.nodes.length === 0) {
                         // Update stats for empty graph
-                        document.getElementById('vertexCount').textContent = `Vertices: 0`;
-                        document.getElementById('edgeCount').textContent = `Edges: 0`;
+                        document.getElementById('nodeCount').textContent = `Nodes: 0`;
+                        document.getElementById('relationshipCount').textContent = `Relationships: 0`;
+                        
+                        // Show the nice modal for empty results
+                        showError('No matching nodes found for your search criteria. Try adjusting your search terms.', 'No initial nodes found');
                         return data;
                     }
                     
                     // Process and add nodes
-                    const processedNodes = data.vertices.map(node => {
-                        const nodeStyle = data.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                    const processedNodes = data.nodes.map(node => {
+                        const nodeStyle = data.metadata.nodeColors[node.group] || defaultStyles.node;
                         const isOverlapping = node.num_observations > 1 && 
                                            node.group !== 'source' && 
                                            node.group !== 'observation_of_identity';
                         
                         // Check if this is the searched-for node
-                        const isSearchedNode = searchParams && searchParams.get('searchType') === 'vertexValue' && 
+                        const isSearchedNode = searchParams && searchParams.get('searchType') === 'nodeValue' && 
                                              searchParams.get('searchValue') && 
                                              node.label.toLowerCase().includes(searchParams.get('searchValue').toLowerCase());
                         
@@ -695,19 +786,19 @@
                         };
                     });
 
-                    // Process and add edges
-                    const processedEdges = data.edges.map(edge => {
-                        const edgeStyle = data.metadata.edgeColors[edge.label] || defaultStyles.edge;
-                        const fromNode = data.vertices.find(n => n.id === edge.from);
-                        const toNode = data.vertices.find(n => n.id === edge.to);
+                    // Process and add relationships
+                    const processedRelationships = data.relationships.map(relationship => {
+                        const relationshipStyle = data.metadata.relationshipColors[relationship.label] || defaultStyles.relationship;
+                        const fromNode = data.nodes.find(n => n.id === relationship.from);
+                        const toNode = data.nodes.find(n => n.id === relationship.to);
                         const isConnectedToOverlap = (fromNode && fromNode.num_observations > 1 && fromNode.group !== 'source' && fromNode.group !== 'observation_of_identity') ||
                                                    (toNode && toNode.num_observations > 1 && toNode.group !== 'source' && toNode.group !== 'observation_of_identity');
-                        
+                            
                         return {
-                            ...edge,
-                            color: edgeStyle.color,
-                            width: isConnectedToOverlap ? edgeStyle.width * 1.5 : edgeStyle.width,
-                            dashes: edgeStyle.dashes,
+                            ...relationship,
+                            color: relationshipStyle.color,
+                            width: isConnectedToOverlap ? relationshipStyle.width * 1.5 : relationshipStyle.width,
+                            dashes: relationshipStyle.dashes,
                             shadow: isConnectedToOverlap ? {
                                 enabled: true,
                                 color: 'rgba(255, 165, 0, 0.2)'
@@ -719,18 +810,18 @@
                     
                     // Add processed data to network
                     nodes.add(processedNodes);
-                    edges.add(processedEdges);
+                    relationships.add(processedRelationships);
                     
                     // Add clustering effects
                     clusterSameTypeNodes();
                     
                     // Update stats
-                    document.getElementById('vertexCount').textContent = `Vertices: ${nodes.length}`;
-                    document.getElementById('edgeCount').textContent = `Edges: ${edges.length}`;
+                    document.getElementById('nodeCount').textContent = `Nodes: ${nodes.length}`;
+                    document.getElementById('relationshipCount').textContent = `Relationships: ${relationships.length}`;
                     
                     // Initialize filters and selectors
                     initializeFilters();
-                    populateVertexSelectors();
+                    populateNodeSelectors();
 
                     // Find and display overlapping nodes
                     const overlappingNodes = nodes.get().filter(node => {
@@ -794,7 +885,8 @@
                     return data;
                 } catch (error) {
                     console.error('Error loading graph data:', error);
-                    alert(error.message || 'Failed to load graph data. Please try again.');
+                    // Use the nice modal for all errors, not basic alert
+                    showError('Failed to load graph data. Please try again.', 'Error');
                     throw error;
                 } finally {
                     if (isUserAction) {
@@ -818,8 +910,8 @@
                 }
             }
 
-            // Populate all vertex selectors
-            function populateVertexSelectors() {
+            // Populate all node selectors
+            function populateNodeSelectors() {
                 const nodeSelect = document.getElementById('nodeSelect');
                 const traceFromSelect = document.getElementById('traceFromSelect');
                 const traceToSelect = document.getElementById('traceToSelect');
@@ -879,7 +971,7 @@
                 return $option;
             }
 
-            // Find all paths between two vertices
+            // Find all paths between two nodes
             function findAllPaths(startId, endId, maxDepth = 10) {
                 const paths = [];
                 const visited = new Set();
@@ -891,19 +983,19 @@
                         return;
                     }
                     
-                    // Get all edges connected to current node (both directions)
-                    const connectedEdges = edges.get().filter(edge => 
-                        edge.from === currentId || edge.to === currentId
+                    // Get all relationships connected to current node (both directions)
+                    const connectedRelationships = relationships.get().filter(relationship => 
+                        relationship.from === currentId || relationship.to === currentId
                     );
                     
-                    for (const edge of connectedEdges) {
-                        const nextNodeId = edge.from === currentId ? edge.to : edge.from;
+                    for (const relationship of connectedRelationships) {
+                        const nextNodeId = relationship.from === currentId ? relationship.to : relationship.from;
                         
                         // Skip if we've already visited this node in the current path
                         if (path.includes(nextNodeId)) continue;
                         
-                        // Create a unique path key that includes the edge and direction
-                        const pathKey = `${path.join(',')}-${edge.id}-${nextNodeId}`;
+                        // Create a unique path key that includes the relationship and direction
+                        const pathKey = `${path.join(',')}-${relationship.id}-${nextNodeId}`;
                         if (visited.has(pathKey)) continue;
                         visited.add(pathKey);
                         
@@ -928,7 +1020,7 @@
             function highlightPaths(paths) {
                 // Reset all nodes to backend color and default appearance
                 nodes.get().forEach(node => {
-                    const nodeColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                    const nodeColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
                     nodes.update({
                         id: node.id,
                         color: {
@@ -948,17 +1040,17 @@
                         font: { bold: false, size: 25 }
                     });
                 });
-                // Reset all edges to backend color and default appearance
-                edges.get().forEach(edge => {
-                    const edgeStyle = graphData.metadata.edgeColors[edge.label] || defaultStyles.edge;
-                    const fromNode = nodes.get(edge.from);
-                    const toNode = nodes.get(edge.to);
+                // Reset all relationships to backend color and default appearance
+                relationships.get().forEach(relationship => {
+                    const relationshipStyle = graphData.metadata.relationshipColors[relationship.label] || defaultStyles.relationship;
+                    const fromNode = nodes.get(relationship.from);
+                    const toNode = nodes.get(relationship.to);
                     const isConnectedToShared = (fromNode && fromNode.is_shared === true) || (toNode && toNode.is_shared === true);
-                    edges.update({
-                        id: edge.id,
-                        color: edgeStyle.color,
-                        width: isConnectedToShared ? edgeStyle.width * 1.5 : edgeStyle.width,
-                        dashes: edgeStyle.dashes,
+                    relationships.update({
+                        id: relationship.id,
+                        color: relationshipStyle.color,
+                        width: isConnectedToShared ? relationshipStyle.width * 1.5 : relationshipStyle.width,
+                        dashes: relationshipStyle.dashes,
                         shadow: false
                     });
                 });
@@ -967,7 +1059,7 @@
                     // Highlight nodes
                     path.forEach(nodeId => {
                         const node = nodes.get(nodeId);
-                        const nodeColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                        const nodeColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
                         nodes.update({
                             id: nodeId,
                             color: {
@@ -987,14 +1079,14 @@
                             font: { bold: true, size: 28 }
                         });
                     });
-                    // Highlight edges
+                    // Highlight relationships
                     for (let i = 0; i < path.length - 1; i++) {
                         const fromId = path[i];
                         const toId = path[i + 1];
-                        edges.get().forEach(edge => {
-                            if ((edge.from === fromId && edge.to === toId) || (edge.to === fromId && edge.from === toId)) {
-                                edges.update({
-                                    id: edge.id,
+                        relationships.get().forEach(relationship => {
+                            if ((relationship.from === fromId && relationship.to === toId) || (relationship.to === fromId && relationship.from === toId)) {
+                                relationships.update({
+                                    id: relationship.id,
                                     color: '#FF0000',
                                     width: 4,
                                     shadow: true
@@ -1022,13 +1114,13 @@
                     
                     if (distance >= maxDistance) continue;
 
-                    edges.get().forEach(edge => {
-                        const pairKey = `${currentNodeId}-${edge.label}-${edge.from === currentNodeId ? edge.to : edge.from}`;
+                    relationships.get().forEach(relationship => {
+                        const pairKey = `${currentNodeId}-${relationship.label}-${relationship.from === currentNodeId ? relationship.to : relationship.from}`;
                         
                         if (processedPairs.has(pairKey)) return;
                         
-                        if (edge.from === currentNodeId || edge.to === currentNodeId) {
-                            const nextNodeId = edge.from === currentNodeId ? edge.to : edge.from;
+                        if (relationship.from === currentNodeId || relationship.to === currentNodeId) {
+                            const nextNodeId = relationship.from === currentNodeId ? relationship.to : relationship.from;
                             processedPairs.add(pairKey);
                             
                             if (!connectedNodes.has(nextNodeId)) {
@@ -1070,7 +1162,7 @@
                     if (!selectedNodeId) {
                         nodes.get().forEach(node => {
                             const isVisible = shouldNodeBeVisible(node);
-                            const nodeColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                            const nodeColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
                             nodes.update({ 
                                 id: node.id, 
                                 hidden: !isVisible,
@@ -1089,10 +1181,10 @@
                             });
                         });
 
-                        edges.get().forEach(edge => {
-                            const isVisible = shouldEdgeBeVisible(edge);
-                            const isClusteringEdge = edge.label === 'clustering_edge';
-                            edges.update({ id: edge.id, hidden: isClusteringEdge || !isVisible });
+                        relationships.get().forEach(relationship => {
+                            const isVisible = shouldRelationshipBeVisible(relationship);
+                            const isClusteringRelationship = relationship.label === 'clustering_relationship';
+                            relationships.update({ id: relationship.id, hidden: isClusteringRelationship || !isVisible });
                         });
                         
                         network.fit({
@@ -1117,7 +1209,7 @@
                     // Update visibility and color for all nodes
                     nodes.get().forEach(node => {
                         const isVisible = connectedNodes.has(node.id) && shouldNodeBeVisible(node);
-                        const nodeColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                        const nodeColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
                         const isFocusNode = node.id === selectedNodeId;
                         
                         nodes.update({ 
@@ -1144,11 +1236,11 @@
                         });
                     });
 
-                    edges.get().forEach(edge => {
-                        const isVisible = (connectedNodes.has(edge.from) && connectedNodes.has(edge.to)) && 
-                                        shouldEdgeBeVisible(edge);
-                        const isClusteringEdge = edge.label === 'clustering_edge';
-                        edges.update({ id: edge.id, hidden: isClusteringEdge || !isVisible });
+                    relationships.get().forEach(relationship => {
+                        const isVisible = (connectedNodes.has(relationship.from) && connectedNodes.has(relationship.to)) && 
+                                        shouldRelationshipBeVisible(relationship);
+                        const isClusteringRelationship = relationship.label === 'clustering_relationship';
+                        relationships.update({ id: relationship.id, hidden: isClusteringRelationship || !isVisible });
                     });
 
                     network.fit({
@@ -1164,7 +1256,7 @@
                     togglePhysics(true);
                 } catch (error) {
                     console.error('Error updating focus:', error);
-                    alert('Failed to update focus view. Please try again.');
+                    showError('Failed to update focus view. Please try again.', 'Focus Error');
                 } finally {
                     if (isUserAction) {
                         hideLoadingFor('focusLoadingOverlay');
@@ -1177,12 +1269,12 @@
                 return checkbox ? checkbox.checked : true;
             }
 
-            function shouldEdgeBeVisible(edge) {
-                const checkbox = document.getElementById(edge.label);
+            function shouldRelationshipBeVisible(relationship) {
+                const checkbox = document.getElementById(relationship.label);
                 return checkbox ? checkbox.checked : true;
             }
 
-            function updateEdgeVisibility() {
+            function updateRelationshipVisibility() {
                 const selectedNodeId = nodeSelect.value;
                 
                 // Don't update focus if we're just filtering
@@ -1204,35 +1296,35 @@
                     }
                 });
 
-                // Update edges based on filter checkboxes and visible nodes
-                edges.get().forEach(edge => {
-                    const isTypeVisible = document.getElementById(edge.label)?.checked ?? true;
-                    const fromNodeVisible = visibleNodes.has(edge.from);
-                    const toNodeVisible = visibleNodes.has(edge.to);
+                // Update relationships based on filter checkboxes and visible nodes
+                relationships.get().forEach(relationship => {
+                    const isTypeVisible = document.getElementById(relationship.label)?.checked ?? true;
+                    const fromNodeVisible = visibleNodes.has(relationship.from);
+                    const toNodeVisible = visibleNodes.has(relationship.to);
                     const areNodesVisible = fromNodeVisible && toNodeVisible;
-                    const edgeStyle = graphData.metadata.edgeColors[edge.label] || defaultStyles.edge;
+                    const relationshipStyle = graphData.metadata.relationshipColors[relationship.label] || defaultStyles.relationship;
 
                     // Check if connected to a shared node
-                    const fromNode = nodes.get(edge.from);
-                    const toNode = nodes.get(edge.to);
+                    const fromNode = nodes.get(relationship.from);
+                    const toNode = nodes.get(relationship.to);
                     const isConnectedToShared = (fromNode && fromNode.is_shared === true) || 
                                               (toNode && toNode.is_shared === true);
 
-                    // Always keep clustering edges hidden
-                    const isClusteringEdge = edge.label === 'clustering_edge';
-                    const shouldHide = isClusteringEdge || !isTypeVisible || !areNodesVisible;
+                    // Always keep clustering relationships hidden
+                    const isClusteringRelationship = relationship.label === 'clustering_relationship';
+                    const shouldHide = isClusteringRelationship || !isTypeVisible || !areNodesVisible;
 
-                    edges.update({ 
-                        id: edge.id, 
+                    relationships.update({ 
+                        id: relationship.id, 
                         hidden: shouldHide,
-                        color: edgeStyle.color,
-                        width: isConnectedToShared ? edgeStyle.width * 1.5 : edgeStyle.width,
-                        dashes: edgeStyle.dashes
+                        color: relationshipStyle.color,
+                        width: isConnectedToShared ? relationshipStyle.width * 1.5 : relationshipStyle.width,
+                        dashes: relationshipStyle.dashes
                     });
                 });
             }
 
-            function updateVertexVisibility() {
+            function updateNodeVisibility() {
                 const selectedNodeId = nodeSelect.value;
                 
                 if (selectedNodeId) {
@@ -1243,7 +1335,7 @@
                 // Update all nodes based on filter checkboxes
                 nodes.get().forEach(node => {
                     const isTypeVisible = document.getElementById(node.group)?.checked ?? true;
-                    const metadataColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                    const metadataColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
                     const isShared = node.is_shared === true;
                     
                     nodes.update({ 
@@ -1264,28 +1356,28 @@
                     });
                 });
 
-                // Update edge visibility accordingly
-                updateEdgeVisibility();
+                // Update relationship visibility accordingly
+                updateRelationshipVisibility();
             }
 
-            // Function to create invisible edges for custom clustering
-            function createInvisibleEdge(fromNodeId, toNodeId, options = {}) {
+            // Function to create invisible relationships for custom clustering
+            function createInvisibleRelationship(fromNodeId, toNodeId, options = {}) {
                 const defaultOptions = {
                     length: 800,
                     physics: true,
                     hidden: true,
                     smooth: { type: 'continuous' },
                     width: 0,
-                    label: 'clustering_edge'  // Special label to identify clustering edges
+                    label: 'clustering_relationship'  // Special label to identify clustering relationships
                 };
                 
-                const edgeOptions = { ...defaultOptions, ...options };
+                const relationshipOptions = { ...defaultOptions, ...options };
                 
                 edges.add({
                     from: fromNodeId,
                     to: toNodeId,
                     color: { opacity: 0 },
-                    ...edgeOptions
+                    ...relationshipOptions
                 });
             }
 
@@ -1311,17 +1403,18 @@
                     typeGroups[node.group].push(node);
                 });
                 
-                // For each group type, add invisible edges between same-type nodes for clustering
+                // For each group type, add invisible relationships between same-type nodes for clustering
+                // For each group type, add invisible relationships between same-type nodes for clustering
                 Object.entries(typeGroups).forEach(([type, nodeList]) => {
                     if (nodeList.length > 1) {
-                        // Create invisible edges between all nodes of the same type
+                        // Create invisible relationships between all nodes of the same type
                         for (let i = 0; i < nodeList.length; i++) {
                             for (let j = i + 1; j < nodeList.length; j++) {
                                 const nodeA = nodeList[i];
                                 const nodeB = nodeList[j];
                                 
-                                // Add invisible edge for clustering
-                                createInvisibleEdge(nodeA.id, nodeB.id);
+                                // Add invisible relationship for clustering
+                                createInvisibleRelationship(nodeA.id, nodeB.id);
                             }
                         }
                     }
@@ -1398,9 +1491,9 @@
                         }
                         // Find connected source nodes
                         const connectedSources = new Set();
-                        edges.get().forEach(edge => {
-                            if ((edge.from === node.id || edge.to === node.id) && !edge.hidden) {
-                                const otherNode = nodes.get(edge.from === node.id ? edge.to : edge.from);
+                        relationships.get().forEach(relationship => {
+                            if ((relationship.from === node.id || relationship.to === node.id) && !relationship.hidden) {
+                                const otherNode = nodes.get(relationship.from === node.id ? relationship.to : relationship.from);
                                 if (otherNode && otherNode.group === 'source') {
                                     connectedSources.add(otherNode.label);
                                 }
@@ -1507,8 +1600,9 @@
 
             // Get control elements and set up event listeners after DOM is loaded
             document.addEventListener('DOMContentLoaded', async () => {
-                // Load vertex types first
-                await loadVertexTypes();
+                // Load node types first
+                await loadNodeTypes();
+                await loadSourceTypes();
                 
                 // Initialize controls visibility
                 const controlsColumn = document.getElementById('controlsColumn');
@@ -1687,7 +1781,7 @@
                         const toId = elements.traceToSelect.value;
                         
                         if (!fromId || !toId) {
-                            alert('Please select both vertices for tracing');
+                            showError('Please select both nodes for tracing', 'Validation Error');
                             return;
                         }
                         
@@ -1698,19 +1792,19 @@
                             const maxDepth = document.getElementById('traceMaxDepth').value || 5;
                             
                             // Call the Neo4j API to find paths
-                            const response = await fetch(`/api/find-paths?fromVertexId=${encodeURIComponent(fromId)}&toVertexId=${encodeURIComponent(toId)}&maxDepth=${maxDepth}`);
+                            const response = await fetch(`/api/find-paths?fromNodeId=${encodeURIComponent(fromId)}&toNodeId=${encodeURIComponent(toId)}&maxDepth=${maxDepth}`);
                             const data = await response.json();
                             
                             if (data.error) {
                                 console.error('API error:', data.error);
-                                alert(`Error finding paths: ${data.error}`);
+                                showError(`Error finding paths: ${data.error}`, 'Path Finding Error');
                                 return;
                             }
                             
                             console.log(`Found ${data.count} paths via Neo4j API`);
                             
                             if (data.count === 0) {
-                                alert('No paths found between selected vertices');
+                                showError('No paths found between selected nodes', 'No Paths Found');
                                 return;
                             }
                             
@@ -1722,7 +1816,7 @@
                             
                         } catch (error) {
                             console.error('Error calling path finding API:', error);
-                            alert('Failed to find paths. Please try again.');
+                            showError('Failed to find paths. Please try again.', 'Path Finding Error');
                         }
                     });
                 }
@@ -1730,16 +1824,16 @@
                 // Add hide all and reset filters functionality
                 if (elements.hideAllButton) {
                     elements.hideAllButton.addEventListener('click', () => {
-                        // console.log('Hiding all nodes and edges...');
+                        // console.log('Hiding all nodes and relationships...');
                         // Uncheck all checkboxes
-                        document.querySelectorAll('.edge-filters input[type="checkbox"], .vertex-filters input[type="checkbox"]')
+                        document.querySelectorAll('.relationship-filters input[type="checkbox"], .node-filters input[type="checkbox"]')
                             .forEach(checkbox => {
                                 checkbox.checked = false;
                             });
                         
                         // Update visibility
-                        updateEdgeVisibility();
-                        updateVertexVisibility();
+                        updateRelationshipVisibility();
+                        updateNodeVisibility();
                     });
                 }
                 
@@ -1747,14 +1841,14 @@
                     elements.resetFiltersButton.addEventListener('click', () => {
                         // console.log('Resetting all filters...');
                         // Check all checkboxes
-                        document.querySelectorAll('.edge-filters input[type="checkbox"], .vertex-filters input[type="checkbox"]')
+                        document.querySelectorAll('.relationship-filters input[type="checkbox"], .node-filters input[type="checkbox"]')
                             .forEach(checkbox => {
                                 checkbox.checked = true;
                             });
                         
                         // Update visibility
-                        updateEdgeVisibility();
-                        updateVertexVisibility();
+                        updateRelationshipVisibility();
+                        updateNodeVisibility();
                     });
                 }
 
@@ -1763,7 +1857,7 @@
                 resetViewButton.addEventListener('click', () => {
                     // Show all nodes and reset their visibility
                     nodes.get().forEach(node => {
-                        const metadataColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                        const metadataColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
                         nodes.update({ 
                             id: node.id, 
                             hidden: false,
@@ -1789,22 +1883,22 @@
                         });
                     });
 
-                    // Show all edges
-                    edges.get().forEach(edge => {
-                        const edgeStyle = graphData.metadata.edgeColors[edge.label] || defaultStyles.edge;
-                        const isClusteringEdge = edge.label === 'clustering_edge';
+                    // Show all relationships
+                    relationships.get().forEach(relationship => {
+                        const relationshipStyle = graphData.metadata.relationshipColors[relationship.label] || defaultStyles.relationship;
+                        const isClusteringRelationship = relationship.label === 'clustering_relationship';
                         
-                        edges.update({ 
-                            id: edge.id, 
-                            hidden: isClusteringEdge, // Keep clustering edges hidden
-                            color: edgeStyle.color,
-                            width: edgeStyle.width,
-                            dashes: edgeStyle.dashes
+                        relationships.update({ 
+                            id: relationship.id, 
+                            hidden: isClusteringRelationship, // Keep clustering relationships hidden
+                            color: relationshipStyle.color,
+                            width: relationshipStyle.width,
+                            dashes: relationshipStyle.dashes
                         });
                     });
 
                     // Reset all filters to checked
-                    document.querySelectorAll('.edge-filters input[type="checkbox"], .vertex-filters input[type="checkbox"]')
+                    document.querySelectorAll('.relationship-filters input[type="checkbox"], .node-filters input[type="checkbox"]')
                         .forEach(checkbox => {
                             checkbox.checked = true;
                         });
@@ -1835,13 +1929,13 @@
                             }
                         }
                         
-                        // Clean up any existing invisible edges before processing overlaps
-                        const existingEdges = edges.get();
-                        const invisibleEdges = existingEdges.filter(edge => 
-                            edge.color && edge.color.opacity === 0 && edge.hidden === true
+                        // Clean up any existing invisible relationships before processing overlaps
+                        const existingRelationships = relationships.get();
+                        const invisibleRelationships = existingRelationships.filter(relationship => 
+                            relationship.color && relationship.color.opacity === 0 && relationship.hidden === true
                         );
-                        invisibleEdges.forEach(edge => {
-                            edges.remove(edge.id);
+                        invisibleRelationships.forEach(relationship => {
+                            relationships.remove(relationship.id);
                         });
                         
                         // console.log('Starting overlaps processing...');
@@ -1872,7 +1966,7 @@
                         // Update visibility to show only overlap-related nodes
                         nodes.get().forEach(node => {
                             const isInOverlapView = connectedNodes.has(node.id);
-                            const metadataColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                            const metadataColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
                             const isOverlapping = node.num_observations > 1;
                             
                             // Update the label to include observation count for overlapping nodes
@@ -1917,26 +2011,26 @@
                             });
                         });
 
-                        // Update edge visibility and styling
-                        edges.get().forEach(edge => {
-                            const fromNode = nodes.get(edge.from);
-                            const toNode = nodes.get(edge.to);
+                        // Update relationship visibility and styling
+                        relationships.get().forEach(relationship => {
+                            const fromNode = nodes.get(relationship.from);
+                            const toNode = nodes.get(relationship.to);
                             const areNodesVisible = !fromNode.hidden && !toNode.hidden;
-                            const isInOverlapView = connectedNodes.has(edge.from) && connectedNodes.has(edge.to);
-                            const edgeStyle = graphData.metadata.edgeColors[edge.label] || defaultStyles.edge;
-                            const isClusteringEdge = edge.label === 'clustering_edge';
+                            const isInOverlapView = connectedNodes.has(relationship.from) && connectedNodes.has(relationship.to);
+                            const relationshipStyle = graphData.metadata.relationshipColors[relationship.label] || defaultStyles.relationship;
+                            const isClusteringRelationship = relationship.label === 'clustering_relationship';
                             
-                            // Make edges connected to overlapping nodes stand out more
+                            // Make relationships connected to overlapping nodes stand out more
                             const isConnectedToOverlap = (fromNode.num_observations > 1 || toNode.num_observations > 1) &&
                                                        (fromNode.group !== 'source' && toNode.group !== 'source') &&
                                                        (fromNode.group !== 'observation_of_identity' && toNode.group !== 'observation_of_identity');
                             
-                            edges.update({ 
-                                id: edge.id, 
-                                hidden: isClusteringEdge || !isInOverlapView || !areNodesVisible,
-                                color: edgeStyle.color,
-                                width: isConnectedToOverlap ? edgeStyle.width * 1.5 : edgeStyle.width,
-                                dashes: edgeStyle.dashes,
+                            relationships.update({ 
+                                id: relationship.id, 
+                                hidden: isClusteringRelationship || !isInOverlapView || !areNodesVisible,
+                                color: relationshipStyle.color,
+                                width: isConnectedToOverlap ? relationshipStyle.width * 1.5 : relationshipStyle.width,
+                                dashes: relationshipStyle.dashes,
                                 shadow: isConnectedToOverlap ? {
                                     enabled: true,
                                     color: 'rgba(255, 165, 0, 0.2)'
@@ -1964,16 +2058,27 @@
                 // Search button click handler
                 const searchButton = document.getElementById('searchButton');
                 searchButton.addEventListener('click', async () => {
-                    // Vertex value search
-                    const vertexType = document.getElementById('searchTypeSelect').value;
+                    // Node value search
+                    const nodeType = document.getElementById('searchTypeSelect').value;
                     const searchOperator = document.getElementById('searchOperatorSelect').value;
                     const searchValue = document.getElementById('searchValue').value.trim();
-                    const numHopsVertexSearch = document.getElementById('numHopsVertexSearch').value;
+                    const numHopsNodeSearch = document.getElementById('numHopsNodeSearch').value;
+                    const showNodesOnlySearch = document.getElementById('showNodesOnlySearch').checked;
+                    const searchSourceSelect = document.getElementById('searchSourceSelect').value;
+                    const caseSensitiveSearch = document.getElementById('caseSensitiveSearch').checked;
 
                     if (!searchValue) {
-                        alert('Please enter a search term');
+                        showError('Please enter a search term', 'Validation Error');
                         return;
                     }
+                    
+                    // Clear the graph first to prevent confusion
+                    nodes.clear();
+                    relationships.clear();
+                    
+                    // Reset stats
+                    document.getElementById('nodeCount').textContent = 'Nodes: 0';
+                    document.getElementById('relationshipCount').textContent = 'Relationships: 0';
                     
                     // Show loading on all relevant sections
                     showLoadingFor('graphLoadingOverlay');
@@ -1984,11 +2089,14 @@
                     
                     try {
                         const searchParams = new URLSearchParams({
-                            searchType: 'vertexValue',
-                            vertexType: vertexType,
+                            searchType: 'nodeValue',
+                            nodeType: nodeType,
                             searchOperator: searchOperator,
                             searchValue: searchValue,
-                            numHopsVertexSearch: numHopsVertexSearch,
+                            numHopsNodeSearch: numHopsNodeSearch,
+                            showNodesOnlySearch: showNodesOnlySearch,
+                            searchSourceSelect: searchSourceSelect,
+                            caseSensitiveSearch: caseSensitiveSearch,
                         });
                         
                         await loadGraphData(searchParams);
@@ -2010,6 +2118,14 @@
                     // Show all overlaps search
                     const numConnectionsShowAllOverlaps = document.getElementById('numConnectionsShowAllOverlaps').value;
                     const numHopsShowAllOverlaps = document.getElementById('numHopsShowAllOverlaps').value;
+
+                    // Clear the graph first to prevent confusion
+                    nodes.clear();
+                    relationships.clear();
+                    
+                    // Reset stats
+                    document.getElementById('nodeCount').textContent = 'Nodes: 0';
+                    document.getElementById('relationshipCount').textContent = 'Relationships: 0';
 
                     // Show loading on all relevant sections
                     showLoadingFor('graphLoadingOverlay');
@@ -2043,11 +2159,21 @@
                     updateFocusedSubgraph();
                 });
 
+                // Handle showNodesOnlySearch checkbox to hide/show num-hops-row
+                const showNodesOnlySearch = document.getElementById('showNodesOnlySearch');
+                const numHopsRow = document.querySelector('.num-hops-row');
+                
+                if (showNodesOnlySearch && numHopsRow) {
+                    showNodesOnlySearch.addEventListener('change', function() {
+                        numHopsRow.style.display = this.checked ? 'none' : 'block';
+                    });
+                }
+
                 if (elements.resetTraceButton) {
                     elements.resetTraceButton.addEventListener('click', () => {
                         // Restore all nodes to backend color and default appearance
                         nodes.get().forEach(node => {
-                            const nodeColor = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                            const nodeColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
                             nodes.update({
                                 id: node.id,
                                 color: {
@@ -2067,17 +2193,17 @@
                                 font: { bold: false, size: 25 }
                             });
                         });
-                        // Restore all edges to backend color and default appearance
-                        edges.get().forEach(edge => {
-                            const edgeStyle = graphData.metadata.edgeColors[edge.label] || defaultStyles.edge;
-                            const fromNode = nodes.get(edge.from);
-                            const toNode = nodes.get(edge.to);
+                        // Restore all relationships to backend color and default appearance
+                        relationships.get().forEach(relationship => {
+                            const relationshipStyle = graphData.metadata.relationshipColors[relationship.label] || defaultStyles.relationship;
+                            const fromNode = nodes.get(relationship.from);
+                            const toNode = nodes.get(relationship.to);
                             const isConnectedToShared = (fromNode && fromNode.is_shared === true) || (toNode && toNode.is_shared === true);
-                            edges.update({
-                                id: edge.id,
-                                color: edgeStyle.color,
-                                width: isConnectedToShared ? edgeStyle.width * 1.5 : edgeStyle.width,
-                                dashes: edgeStyle.dashes,
+                            relationships.update({
+                                id: relationship.id,
+                                color: relationshipStyle.color,
+                                width: isConnectedToShared ? relationshipStyle.width * 1.5 : relationshipStyle.width,
+                                dashes: relationshipStyle.dashes,
                                 shadow: false
                             });
                         });
@@ -2161,18 +2287,26 @@
                     // Restore original colors when hover ends
                     if (hoveredNodeId === params.node) {
                         const node = nodes.get(params.node);
-                        const nodeStyle = graphData.metadata.vertexColors[node.group] || defaultStyles.vertex;
+                        const nodeStyle = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
                         const isOverlapping = node.num_observations > 1 && 
                                            node.group !== 'source' && 
                                            node.group !== 'observation_of_identity';
+                        
+                        // Check if this is a focus node (selected in focus dropdown)
+                        const nodeSelect = document.getElementById('nodeSelect');
+                        const isFocusNode = nodeSelect && nodeSelect.value === params.node;
+                        
+                        // Check if this is a searched-for node (from search results)
+                        const isSearchedNode = node.label && node.label.includes('(') && 
+                                             (node.label.includes('obs)') || node.label.includes('obs'));
                         
                         // console.log('Restoring colors for node:', params.node, 'group:', node.group, 'style:', nodeStyle);
                         
                         nodes.update({
                             id: params.node,
                             color: {
-                                background: nodeStyle.background,
-                                border: isOverlapping ? '#FFA500' : nodeStyle.border,
+                                background: isFocusNode ? '#FFD700' : (isSearchedNode ? '#FFD700' : nodeStyle.background),
+                                border: isFocusNode ? '#FF4500' : (isSearchedNode ? '#FF4500' : (isOverlapping ? '#FFA500' : nodeStyle.border)),
                                 highlight: {
                                     background: '#FFFFFF',  // Keep consistent hover colors
                                     border: '#007BFF'
@@ -2181,7 +2315,35 @@
                                     background: '#FFFFFF',
                                     border: '#007BFF'
                                 }
-                            }
+                            },
+                            size: isFocusNode ? 50 : (isSearchedNode ? 60 : (isOverlapping ? 45 : 30)),
+                            borderWidth: isFocusNode ? 4 : (isSearchedNode ? 5 : (isOverlapping ? 3 : 1)),
+                            font: {
+                                color: '#000000',
+                                size: isFocusNode ? 30 : (isSearchedNode ? 35 : (isOverlapping ? 30 : 25)),
+                                bold: isFocusNode || isSearchedNode || isOverlapping
+                            },
+                            shadow: isFocusNode ? {
+                                enabled: true,
+                                color: 'rgba(255, 69, 0, 0.4)',
+                                size: 15,
+                                x: 0,
+                                y: 0
+                            } : (isSearchedNode ? {
+                                enabled: true,
+                                color: 'rgba(255, 69, 0, 0.4)',
+                                size: 15,
+                                x: 0,
+                                y: 0
+                            } : (isOverlapping ? {
+                                enabled: true,
+                                color: 'rgba(255, 165, 0, 0.3)',
+                                size: 10,
+                                x: 0,
+                                y: 0
+                            } : {
+                                enabled: false
+                            }))
                         });
                         hoveredNodeId = null;
                     }
@@ -2238,7 +2400,7 @@
                         try {
                             const currentOptions = { ...options };
                             currentOptions.nodes.font.color = isDarkMode ? '#ffffff' : '#212529';
-                            currentOptions.edges.color = isDarkMode ? '#adb5bd' : '#6c757d';
+                            currentOptions.relationships.color = isDarkMode ? '#adb5bd' : '#6c757d';
                             network.setOptions(currentOptions);
                         } catch (error) {
                             console.warn('Could not update network options:', error);
@@ -2270,53 +2432,53 @@
                 // console.log('Initializing filters...');
                 
                 // Get filter containers
-                const vertexFilters = document.querySelector('.vertex-filters');
-                const edgeFilters = document.querySelector('.edge-filters');
+                const nodeFilters = document.querySelector('.node-filters');
+                const relationshipFilters = document.querySelector('.relationship-filters');
                 
-                if (!vertexFilters || !edgeFilters) {
+                if (!nodeFilters || !relationshipFilters) {
                     console.error('Filter containers not found');
                     return;
                 }
                 
                 // Clear existing filters
-                vertexFilters.innerHTML = '';
-                edgeFilters.innerHTML = '';
+                nodeFilters.innerHTML = '';
+                relationshipFilters.innerHTML = '';
                 
-                // Get unique vertex and edge types from the original data
-                const vertexTypes = new Set(graphData.vertices.map(vertex => vertex.group));
-                const edgeTypes = new Set(graphData.edges.map(edge => edge.label));
+                // Get unique node and relationship types from the original data
+                const nodeTypes = new Set(graphData.nodes.map(node => node.group));
+                const relationshipTypes = new Set(graphData.relationships.map(relationship => relationship.label));
                 
-                // console.log('Found vertex types:', Array.from(vertexTypes));
-                // console.log('Found edge types:', Array.from(edgeTypes));
+                // console.log('Found node types:', Array.from(nodeTypes));
+                // console.log('Found relationship types:', Array.from(relationshipTypes));
                 
-                // Create vertex type filters
-                Array.from(vertexTypes).sort().forEach(type => {
+                // Create node type filters
+                Array.from(nodeTypes).sort().forEach(type => {
                     if (!type) return; // Skip if type is undefined or null
                     
-                    const style = graphData.metadata.vertexColors[type] || defaultStyles.vertex;
-                    const checkbox = createFilterCheckbox(type, vertexFilters, false, style);
+                    const style = graphData.metadata.nodeColors[type] || defaultStyles.node;
+                    const checkbox = createFilterCheckbox(type, nodeFilters, false, style);
                     
                     checkbox.addEventListener('change', () => {
-                        updateVertexVisibility();
-                        updateEdgeVisibility();
+                        updateNodeVisibility();
+                        updateRelationshipVisibility();
                     });
                 });
                 
-                // Create edge type filters
-                Array.from(edgeTypes).sort().forEach(type => {
+                // Create relationship type filters
+                Array.from(relationshipTypes).sort().forEach(type => {
                     if (!type) return; // Skip if type is undefined or null
                     
-                    const style = graphData.metadata.edgeColors[type] || defaultStyles.edge;
-                    const checkbox = createFilterCheckbox(type, edgeFilters, true, style);
+                    const style = graphData.metadata.relationshipColors[type] || defaultStyles.relationship;
+                    const checkbox = createFilterCheckbox(type, relationshipFilters, true, style);
                     
                     checkbox.addEventListener('change', () => {
-                        updateEdgeVisibility();
+                        updateRelationshipVisibility();
                     });
                 });
             }
 
             // Function to create filter checkboxes
-            function createFilterCheckbox(type, container, isEdge, style) {
+            function createFilterCheckbox(type, container, isRelationship, style) {
                 const filterItem = document.createElement('div');
                 filterItem.className = 'filter-item';
 
@@ -2332,9 +2494,9 @@
                 label.textContent = type;
 
                 const colorBox = document.createElement('div');
-                colorBox.className = `filter-color ${isEdge ? 'line' : 'circle'}`;
-                colorBox.style.backgroundColor = isEdge ? style.color : style.background;
-                if (!isEdge) {
+                colorBox.className = `filter-color ${isRelationship ? 'circle' : 'line'}`;
+                colorBox.style.backgroundColor = isRelationship ? style.background : style.color;
+                if (isRelationship) {
                     colorBox.style.borderColor = style.border;
                 }
 
@@ -2344,6 +2506,27 @@
                 container.appendChild(filterItem);
 
                 return checkbox;
+            }
+
+            // Function to create invisible relationships for custom clustering
+            function createInvisibleRelationship(fromNodeId, toNodeId, options = {}) {
+                const defaultOptions = {
+                    length: 800,
+                    physics: true,
+                    hidden: true,
+                    smooth: { type: 'continuous' },
+                    width: 0,
+                    label: 'clustering_relationship'  // Special label to identify clustering relationships
+                };
+                
+                const relationshipOptions = { ...defaultOptions, ...options };
+                
+                relationships.add({
+                    from: fromNodeId,
+                    to: toNodeId,
+                    color: { opacity: 0 },
+                    ...relationshipOptions
+                });
             }
         </script>
     </div>

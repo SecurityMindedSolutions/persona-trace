@@ -660,8 +660,8 @@
 }
 
 /* Ensure filter sections scroll properly when expanded */
-#filtersCollapse.show .vertex-filters,
-#filtersCollapse.show .edge-filters {
+#filtersCollapse.show .node-filters,
+#filtersCollapse.show .relationship-filters {
     flex: 1;
     overflow-y: auto;
     min-height: 0;  /* Allow proper flex shrinking */
@@ -680,28 +680,28 @@
 }
 
 /* Style scrollbars for better visibility */
-.vertex-filters::-webkit-scrollbar,
-.edge-filters::-webkit-scrollbar,
+.node-filters::-webkit-scrollbar,
+.relationship-filters::-webkit-scrollbar,
 #overlapsContent::-webkit-scrollbar {
     width: 8px;
 }
 
-.vertex-filters::-webkit-scrollbar-track,
-.edge-filters::-webkit-scrollbar-track,
+.node-filters::-webkit-scrollbar-track,
+.relationship-filters::-webkit-scrollbar-track,
 #overlapsContent::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 4px;
 }
 
-.vertex-filters::-webkit-scrollbar-thumb,
-.edge-filters::-webkit-scrollbar-thumb,
+.node-filters::-webkit-scrollbar-thumb,
+.relationship-filters::-webkit-scrollbar-thumb,
 #overlapsContent::-webkit-scrollbar-thumb {
     background: #888;
     border-radius: 4px;
 }
 
-.vertex-filters::-webkit-scrollbar-thumb:hover,
-.edge-filters::-webkit-scrollbar-thumb:hover,
+.node-filters::-webkit-scrollbar-thumb:hover,
+.relationship-filters::-webkit-scrollbar-thumb:hover,
 #overlapsContent::-webkit-scrollbar-thumb:hover {
     background: #555;
 }

@@ -3,7 +3,7 @@ from neo4j import GraphDatabase
 import random
 
 import logging
-from lib.constants import VERTEX_COLORS, EDGE_COLORS_OPTIONS, logger, FIND_PATHS_MAX_DEPTH
+from lib.constants import NODE_COLORS, RELATIONSHIP_COLORS_OPTIONS, logger, FIND_PATHS_MAX_DEPTH
 from lib.neo4j_connection import get_neo4j_connection
 import json
 
@@ -11,8 +11,8 @@ import json
 graph_bp = Blueprint('graph', __name__)
 
 # Global dictionaries to maintain consistent color assignments across requests
-VERTEX_COLOR_ASSIGNMENTS = {}
-EDGE_COLOR_ASSIGNMENTS = {}
+NODE_COLOR_ASSIGNMENTS = {}
+RELATIONSHIP_COLOR_ASSIGNMENTS = {}
 
 
 @graph_bp.route('/')
@@ -28,12 +28,15 @@ def api_graph_data():
     try:
         # Get search parameters from the request
         search_type = request.args.get('searchType')
-        # Vertex value search
+        # Node value search
         show_overlaps = request.args.get('showOverlaps') == "true"
-        vertex_type = request.args.get('vertexType')
+        node_type = request.args.get('nodeType')
         search_operator = request.args.get('searchOperator', 'equals')
         search_value = request.args.get('searchValue')
-        num_hops_vertex_search = request.args.get('numHopsVertexSearch', '2')
+        num_hops_node_search = request.args.get('numHopsNodeSearch', '2')
+        show_nodes_only_search = request.args.get('showNodesOnlySearch', 'false').lower() == 'true'
+        search_source_select = request.args.get('searchSourceSelect', '')
+        case_sensitive_search = request.args.get('caseSensitiveSearch', 'false').lower() == 'true'
         # Show all overlaps
         num_connections_show_all_overlaps = request.args.get('numConnectionsShowAllOverlaps', '2')
         num_hops_show_all_overlaps = request.args.get('numHopsShowAllOverlaps', '2')
@@ -47,9 +50,9 @@ def api_graph_data():
             
             # Convert num_hops to integer with default value of 2
             try:
-                num_hops_vertex_search = int(num_hops_vertex_search) if num_hops_vertex_search else 2
+                num_hops_node_search = int(num_hops_node_search) if num_hops_node_search else 2
             except (ValueError, TypeError):
-                num_hops_vertex_search = 2
+                num_hops_node_search = 2
             try:
                 num_connections_show_all_overlaps = int(num_connections_show_all_overlaps) if num_connections_show_all_overlaps else 2
             except (ValueError, TypeError):
@@ -64,28 +67,29 @@ def api_graph_data():
                 search_type=search_type,
                 search_value=search_value,
                 search_operator=search_operator,
-                vertex_type=vertex_type,
-                num_hops=num_hops_vertex_search if search_type == 'vertexValue' else num_hops_show_all_overlaps,
-                num_connections_show_all_overlaps=num_connections_show_all_overlaps
+                node_type=node_type,
+                num_hops=num_hops_node_search if search_type == 'nodeValue' else num_hops_show_all_overlaps,
+                num_connections_show_all_overlaps=num_connections_show_all_overlaps,
+                show_nodes_only_search=show_nodes_only_search
             )
             
             # Return fake data
             return jsonify({
-                'vertices': fake_data['vertices'],
-                'edges': fake_data['edges'],
+                'relationships': fake_data['relationships'],
+                'relationships': fake_data['relationships'],
                 'metadata': {
-                    'vertexCount': len(fake_data['vertices']),
-                    'edgeCount': len(fake_data['edges']),
-                    'vertexColors': fake_data['metadata']['vertexColors'],
-                    'edgeColors': fake_data['metadata']['edgeColors']
+                    'nodeCount': len(fake_data['relationships']),
+                    'relationshipCount': len(fake_data['relationships']),
+                    'nodeColors': fake_data['metadata']['nodeColors'],
+                    'relationshipColors': fake_data['metadata']['relationshipColors']
                 }
             })
 
         # Convert num_hops to integer with default value of 2
         try:
-            num_hops_vertex_search = int(num_hops_vertex_search) if num_hops_vertex_search else 2
+            num_hops_node_search = int(num_hops_node_search) if num_hops_node_search else 2
         except (ValueError, TypeError):
-            num_hops_vertex_search = 2
+            num_hops_node_search = 2
         try:
             num_connections_show_all_overlaps = int(num_connections_show_all_overlaps) if num_connections_show_all_overlaps else 2
         except (ValueError, TypeError):
@@ -98,37 +102,39 @@ def api_graph_data():
         # Establish Neo4j connection
         driver = get_neo4j_connection()
 
-        # Fetch initial vertices from Neo4j based on the search parameters
-        logger.info(f"Fetching initial vertices from Neo4j... (show_overlaps={show_overlaps}, search_value={search_value}, search_operator={search_operator}, vertex_type={vertex_type})")
-        initial_vertices = get_initial_nodes(
+        # Fetch initial nodes from Neo4j based on the search parameters
+        logger.info(f"Fetching initial nodes from Neo4j... (show_overlaps={show_overlaps}, search_value={search_value}, search_operator={search_operator}, node_type={node_type})")
+        initial_nodes = get_initial_nodes(
             driver=driver,
             search_type=search_type,
             show_overlaps=show_overlaps,
             search_value=search_value,
             search_operator=search_operator,
-            vertex_type=vertex_type,
-            num_connections_show_all_overlaps=num_connections_show_all_overlaps
+            node_type=node_type,
+            num_connections_show_all_overlaps=num_connections_show_all_overlaps,
+            case_sensitive_search=case_sensitive_search
         )
-        logger.info(f"Initial vertices {len(initial_vertices)}: {initial_vertices}")
+        logger.info(f"Initial nodes {len(initial_nodes)}: {initial_nodes}")
 
-        if not initial_vertices:
+        if not initial_nodes:
             return jsonify({
-                'error': 'No initial vertices found',
+                'error': 'No initial nodes found',
                 'traceback': '',
-                'type': 'No initial vertices found'
+                'type': 'No initial nodes found'
             }), 200
 
-        # Fetch graph data given the initial vertices
-        logger.info(f"Fetching graph data given the initial vertices")
+        # Fetch graph data given the initial nodes
+        logger.info(f"Fetching graph data given the initial nodes")
         data = get_graph_data(
             driver=driver,
             search_type=search_type,
-            initial_vertices=initial_vertices,
-            num_hops=num_hops_vertex_search if search_type == 'vertexValue' else num_hops_show_all_overlaps
+            initial_nodes=initial_nodes,
+            num_hops=num_hops_node_search if search_type == 'nodeValue' else num_hops_show_all_overlaps,
+            show_nodes_only_search=show_nodes_only_search
         )
 
-        logger.info(f"Final vertex count: {len(data['vertices'])}")
-        logger.info(f"Final edge count: {len(data['edges'])}")
+        logger.info(f"Final node count: {len(data['nodes'])}")
+        logger.info(f"Final relationship count: {len(data['relationships'])}")
 
         # Close Neo4j connection
         driver.close()
@@ -155,9 +161,9 @@ def api_graph_data():
         }), 500
 
 
-@graph_bp.route('/api/vertex-types')
-def api_vertex_types():
-    logger.info("API request received for vertex types...")
+@graph_bp.route('/api/node-types')
+def api_node_types():
+    logger.info("API request received for node types...")
     try:
         # Establish Neo4j connection
         driver = get_neo4j_connection()
@@ -172,13 +178,13 @@ def api_vertex_types():
             result = session.run(label_query)
             labels = [record["label"] for record in result if record["label"] != "observation_of_identity"]
             
-            logger.info(f"Found {len(labels)} vertex types: {labels}")
+            logger.info(f"Found {len(labels)} node types: {labels}")
             
             # Close Neo4j connection
             driver.close()
             
             return jsonify({
-                'vertex_types': labels
+                'node_types': labels
             })
             
     except Exception as e:
@@ -193,49 +199,92 @@ def api_vertex_types():
         logger.error("API error:")
         logger.error(error_msg)
         return jsonify({
-            'error': "An error occurred while fetching vertex types",
+            'error': "An error occurred while fetching node types",
+            'traceback': "",
+            'type': type(e).__name__
+        }), 500
+
+@graph_bp.route('/api/source-types')
+def api_source_types():
+    logger.info("API request received for source types...")
+    try:
+        # Establish Neo4j connection
+        driver = get_neo4j_connection()
+        
+        with driver.session() as session:
+            # Get all available source types from the database
+            label_query = """
+            MATCH (n:source)
+            RETURN DISTINCT n.value as source_type
+            ORDER BY source_type
+            """
+            result = session.run(label_query)
+            labels = [record["source_type"] for record in result if record["source_type"] is not None]
+
+            logger.info(f"Found {len(labels)} source types: {labels}")
+
+            # Close Neo4j connection
+            driver.close()
+
+            return jsonify({
+                'source_types': labels
+            })
+            
+    except Exception as e:
+        # Close Neo4j connection
+        if 'driver' in locals():
+            driver.close()
+            
+        # Log the error and return a 500 error
+        import traceback
+        error_trace = traceback.format_exc()
+        error_msg = f"Error: {str(e)}\nTraceback: {error_trace}"
+        logger.error("API error:")
+        logger.error(error_msg)
+        return jsonify({
+            'error': "An error occurred while fetching source types",
             'traceback': "",
             'type': type(e).__name__
         }), 500
 
 
-def get_vertex_color(vertex_type):
-    """Dynamically assign colors to vertex types, keeping source and observation fixed"""
-    global VERTEX_COLOR_ASSIGNMENTS
+def get_node_color(node_type):
+    """Dynamically assign colors to node types, keeping source and observation fixed"""
+    global NODE_COLOR_ASSIGNMENTS
     
     # Fixed colors for source and observation
-    if vertex_type == 'source':
-        return VERTEX_COLORS['source']
-    elif vertex_type == 'observation_of_identity':
-        return VERTEX_COLORS['observation_of_identity']
+    if node_type == 'source':
+        return NODE_COLORS['source']
+    elif node_type == 'observation_of_identity':
+        return NODE_COLORS['observation_of_identity']
     
-    # For other vertex types, assign colors dynamically
-    if vertex_type not in VERTEX_COLOR_ASSIGNMENTS:
+    # For other node types, assign colors dynamically
+    if node_type not in NODE_COLOR_ASSIGNMENTS:
         # Get a random color from the options
-        color_options = VERTEX_COLORS['vertex_color_options']
+        color_options = NODE_COLORS['node_color_options']
         assigned_color = random.choice(color_options)
-        VERTEX_COLOR_ASSIGNMENTS[vertex_type] = assigned_color
+        NODE_COLOR_ASSIGNMENTS[node_type] = assigned_color
     
-    return VERTEX_COLOR_ASSIGNMENTS[vertex_type]
+    return NODE_COLOR_ASSIGNMENTS[node_type]
 
-def get_edge_color(edge_type):
-    """Dynamically assign colors to edge types"""
-    global EDGE_COLOR_ASSIGNMENTS
+def get_relationship_color(relationship_type):
+    """Dynamically assign colors to relationship types"""
+    global RELATIONSHIP_COLOR_ASSIGNMENTS
     
-    if edge_type not in EDGE_COLOR_ASSIGNMENTS:
+    if relationship_type not in RELATIONSHIP_COLOR_ASSIGNMENTS:
         # Get a random color from the options
-        assigned_color = random.choice(EDGE_COLORS_OPTIONS)
-        EDGE_COLOR_ASSIGNMENTS[edge_type] = assigned_color
+        assigned_color = random.choice(RELATIONSHIP_COLORS_OPTIONS)
+        RELATIONSHIP_COLOR_ASSIGNMENTS[relationship_type] = assigned_color
     
-    return EDGE_COLOR_ASSIGNMENTS[edge_type]
+    return RELATIONSHIP_COLOR_ASSIGNMENTS[relationship_type]
 
-def get_initial_nodes(driver, search_type, show_overlaps, search_value, search_operator, vertex_type, num_connections_show_all_overlaps):
+def get_initial_nodes(driver, search_type, show_overlaps, search_value, search_operator, node_type, num_connections_show_all_overlaps, case_sensitive_search):
     try:       
         with driver.session() as session:
             #########################################################################################
-            # Search of a specific vertex
+            # Search of a specific node
             #########################################################################################
-            if search_type == 'vertexValue':
+            if search_type == 'nodeValue':
                 # First, let's find out what labels actually exist
                 label_query = """
                 CALL db.labels() YIELD label
@@ -246,52 +295,112 @@ def get_initial_nodes(driver, search_type, show_overlaps, search_value, search_o
                 logger.info(f"Available labels: {available_labels}")
                 
                 # Build Cypher query based on search parameters
-                if vertex_type:
-                    # Check if the requested vertex type exists
-                    if vertex_type not in available_labels:
-                        logger.warning(f"Requested vertex type '{vertex_type}' not found in database. Available types: {available_labels}")
+                if node_type:
+                    # Check if the requested node type exists
+                    if node_type not in available_labels:
+                        logger.warning(f"Requested node type '{node_type}' not found in database. Available types: {available_labels}")
                         return []
                     
                     # Filter by specific type
                     if search_operator == 'equals':
-                        query = f"MATCH (v:{vertex_type}) WHERE toLower(v.value) = toLower($search_value) RETURN v"
+                        if case_sensitive_search:
+                            query = f"MATCH (v:{node_type}) WHERE v.value = $search_value RETURN v"
+                        else:
+                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) = toLower($search_value) RETURN v"
                         result = session.run(query, search_value=search_value)
                     elif search_operator == 'contains':
-                        query = f"MATCH (v:{vertex_type}) WHERE toLower(v.value) CONTAINS toLower($search_value) RETURN v"
+                        if case_sensitive_search:
+                            query = f"MATCH (v:{node_type}) WHERE v.value CONTAINS $search_value RETURN v"
+                        else:
+                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) CONTAINS toLower($search_value) RETURN v"
+                        result = session.run(query, search_value=search_value)
+                    elif search_operator == 'starts_with':
+                        if case_sensitive_search:
+                            query = f"MATCH (v:{node_type}) WHERE v.value STARTS WITH $search_value RETURN v"
+                        else:
+                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) STARTS WITH toLower($search_value) RETURN v"
+                        result = session.run(query, search_value=search_value)
+                    elif search_operator == 'ends_with':
+                        if case_sensitive_search:
+                            query = f"MATCH (v:{node_type}) WHERE v.value ENDS WITH $search_value RETURN v" 
+                        else:
+                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) ENDS WITH toLower($search_value) RETURN v"
                         result = session.run(query, search_value=search_value)
                     else:
                         raise ValueError(f"Invalid search operator: {search_operator}")
                 else:
-                    # Search across all vertex types
+                    # Search across all node types
                     if search_operator == 'equals':
-                        query = """
-                        MATCH (v)
-                        WHERE toLower(v.value) = toLower($search_value)
-                        RETURN v
-                        """
+                        if case_sensitive_search:
+                            query = """
+                            MATCH (v)
+                            WHERE v.value = $search_value
+                            RETURN v
+                            """
+                        else:
+                            query = """
+                            MATCH (v)
+                            WHERE toLower(v.value) = toLower($search_value)
+                            RETURN v
+                            """
                         result = session.run(query, search_value=search_value)
                     elif search_operator == 'contains':
-                        query = """
-                        MATCH (v)
-                        WHERE toLower(v.value) CONTAINS toLower($search_value)
-                        RETURN v
-                        """
+                        if case_sensitive_search:
+                            query = """
+                            MATCH (v)
+                            WHERE v.value CONTAINS $search_value
+                            RETURN v
+                            """
+                        else:
+                            query = """
+                            MATCH (v)
+                            WHERE toLower(v.value) CONTAINS toLower($search_value)
+                            RETURN v
+                            """
+                        result = session.run(query, search_value=search_value)
+                    elif search_operator == 'starts_with':
+                        if case_sensitive_search:
+                            query = """
+                            MATCH (v)
+                            WHERE v.value STARTS WITH $search_value
+                            RETURN v
+                            """
+                        else:
+                            query = """
+                            MATCH (v)
+                            WHERE toLower(v.value) STARTS WITH toLower($search_value)
+                            RETURN v
+                            """
+                        result = session.run(query, search_value=search_value)
+                    elif search_operator == 'ends_with':
+                        if case_sensitive_search:
+                            query = """
+                            MATCH (v)
+                            WHERE v.value ENDS WITH $search_value
+                            RETURN v
+                            """
+                        else:
+                            query = """
+                            MATCH (v)
+                            WHERE toLower(v.value) ENDS WITH toLower($search_value)
+                            RETURN v
+                            """
                         result = session.run(query, search_value=search_value)
                     else:
                         raise ValueError(f"Invalid search operator: {search_operator}")
                 
                 # Convert Neo4j nodes to list of dictionaries
-                vertices = []
+                nodes = []
                 for record in result:
                     node = record["v"]
                     # Convert Neo4j node to dictionary format
-                    vertex_dict = dict(node)
-                    vertex_dict['id'] = node.id
-                    vertex_dict['elementId'] = node.element_id
-                    vertex_dict['labels'] = list(node.labels)
-                    vertices.append(vertex_dict)
+                    node_dict = dict(node)
+                    node_dict['id'] = node.id
+                    node_dict['elementId'] = node.element_id
+                    node_dict['labels'] = list(node.labels)
+                    nodes.append(node_dict)
                 
-                return vertices
+                return nodes
                 
             #########################################################################################
             # Show all overlaps
@@ -340,23 +449,23 @@ def get_initial_nodes(driver, search_type, show_overlaps, search_value, search_o
                                    identity_labels=identity_labels,
                                    min_connections=num_connections_show_all_overlaps)
                 
-                vertices = []
+                relationships = []
                 for record in result:
                     node = record["identifier"]
-                    vertex_dict = dict(node)
-                    vertex_dict['id'] = node.id
-                    vertex_dict['elementId'] = node.element_id
-                    vertex_dict['labels'] = list(node.labels)
-                    vertex_dict['observation_count'] = record["observation_count"]
-                    vertices.append(vertex_dict)
+                    node_dict = dict(node)
+                    node_dict['id'] = node.id
+                    node_dict['elementId'] = node.element_id
+                    node_dict['labels'] = list(node.labels)
+                    node_dict['observation_count'] = record["observation_count"]
+                    relationships.append(node_dict)
                 
-                logger.info(f"Found {len(vertices)} total shared identifiers")
-                return vertices
+                logger.info(f"Found {len(relationships)} total shared identifiers")
+                return relationships
             else:
                 # Return empty graph if no search or show_overlaps is specified
                 return []
     except Exception as e:
-        logger.error(f"Error getting initial vertices: {str(e)}")
+        logger.error(f"Error getting initial nodes: {str(e)}")
         raise Exception(f"Initial node query failed: {str(e)}")
 
 
@@ -377,62 +486,68 @@ def flatten_properties(props, prefix=''):
     return flat
 
 
-def get_graph_data(driver, search_type, initial_vertices, num_hops):
+def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only_search=False):
     try:
-        vertices = []
+        nodes = []
         seen_ids = set()
 
-        # First, collect the initial vertex IDs
-        initial_vertex_ids = []
-        for v in initial_vertices:
-            # Get the vertex elementId
+        # First, collect the initial node IDs
+        initial_node_ids = []
+        for v in initial_nodes:
+            # Get the node elementId
             if isinstance(v, dict):
                 v_id = str(v['elementId'])
             else:
                 v_id = str(v)
-            initial_vertex_ids.append(v_id)
+            initial_node_ids.append(v_id)
             
-        logger.info(f"Initial vertex IDs: {initial_vertex_ids}")
+        logger.info(f"Initial node IDs: {initial_node_ids}")
 
-        # Get all vertices within num_hops hops of our initial vertices
-        logger.info(f"Getting vertices within {num_hops} hops of {len(initial_vertex_ids)} initial vertices")
+        # If show_nodes_only_search is True, only process the initial nodes
+        if show_nodes_only_search:
+            logger.info("Show nodes only search is enabled - only processing initial nodes")
+            all_nodes = initial_nodes
+        else:
+            # Get all vertices within num_hops hops of our initial vertices
+            logger.info(f"Getting nodes within {num_hops} hops of {len(initial_node_ids)} initial nodes")
+            
+            with driver.session() as session:
+                # Get all connected nodes including the initial ones
+                # Use Cypher to find all nodes within num_hops distance
+                # Note: Neo4j doesn't allow parameters in variable-length path patterns, so we use string formatting
+                query = f"""
+                MATCH (start)
+                WHERE elementId(start) IN $initial_ids
+                WITH start
+                MATCH (start)-[*1..{num_hops}]-(connected)
+                RETURN DISTINCT connected
+                """
+                
+                result = session.run(query, initial_ids=initial_node_ids)
+                
+                all_nodes = []
+                for record in result:
+                    node = record["connected"]
+                    node_dict = dict(node)
+                    node_dict['id'] = node.id
+                    node_dict['elementId'] = node.element_id
+                    node_dict['labels'] = list(node.labels)
+                    all_nodes.append(node_dict)
+                
+                # Add initial vertices if not already included
+                for v in initial_nodes:
+                    if isinstance(v, dict):
+                        v_id = str(v['elementId'])
+                    else:
+                        v_id = str(v)
+                    if not any(str(node['elementId']) == v_id for node in all_nodes):
+                        all_nodes.append(v)
+            
+            logger.info(f"Found {len(all_nodes)} total unique nodes")
         
+        # Process all nodes - we need a session for this regardless of show_nodes_only_search
         with driver.session() as session:
-            # Get all connected vertices including the initial ones
-            # Use Cypher to find all nodes within num_hops distance
-            # Note: Neo4j doesn't allow parameters in variable-length path patterns, so we use string formatting
-            query = f"""
-            MATCH (start)
-            WHERE elementId(start) IN $initial_ids
-            WITH start
-            MATCH (start)-[*1..{num_hops}]-(connected)
-            RETURN DISTINCT connected
-            """
-            
-            result = session.run(query, initial_ids=initial_vertex_ids)
-            
-            all_vertices = []
-            for record in result:
-                node = record["connected"]
-                vertex_dict = dict(node)
-                vertex_dict['id'] = node.id
-                vertex_dict['elementId'] = node.element_id
-                vertex_dict['labels'] = list(node.labels)
-                all_vertices.append(vertex_dict)
-            
-            # Add initial vertices if not already included
-            for v in initial_vertices:
-                if isinstance(v, dict):
-                    v_id = str(v['elementId'])
-                else:
-                    v_id = str(v)
-                if not any(str(vertex['elementId']) == v_id for vertex in all_vertices):
-                    all_vertices.append(v)
-            
-            logger.info(f"Found {len(all_vertices)} total unique vertices")
-            
-            # Process all vertices
-            for v in all_vertices:
+            for v in all_nodes:
                 v_id = str(v['elementId'])
                 if v_id in seen_ids:
                     continue
@@ -453,20 +568,20 @@ def get_graph_data(driver, search_type, initial_vertices, num_hops):
 
                 name = v.get('name', value)
                 # Use dynamic color assignment
-                color = get_vertex_color(raw_label)
+                color = get_node_color(raw_label)
 
                 # For identifier vertices, count the number of observations
-                # Only count for vertex types that are not source or observation_of_identity
+                # Only count for node types that are not source or observation_of_identity
                 num_observations = 0
                 if raw_label not in ['source', 'observation_of_identity']:
                     # Count observations connected to this identifier using Cypher
                     # Use a generic approach that doesn't assume specific relationship names
                     count_query = """
                     MATCH (obs:observation_of_identity)-[r]->(identifier)
-                    WHERE elementId(identifier) = $vertex_id
+                    WHERE elementId(identifier) = $node_id
                     RETURN count(DISTINCT obs) as count
                     """
-                    count_result = session.run(count_query, vertex_id=v_id)
+                    count_result = session.run(count_query, node_id=v_id)
                     count_record = count_result.single()
                     num_observations = count_record["count"] if count_record else 0
                     
@@ -484,114 +599,119 @@ def get_graph_data(driver, search_type, initial_vertices, num_hops):
                     'is_shared': num_observations > 1,
                     'properties': {**v, 'num_observations': num_observations}
                 }
-                vertices.append(node)
+                nodes.append(node)
 
-            logger.info(f"Processed {len(vertices)} vertices")
+            logger.info(f"Processed {len(nodes)} nodes")
             logger.info(f"Seen IDs: {seen_ids}")
 
-            # Get ALL edges between any vertices in our final set
-            logger.info("Getting edges between vertices...")
-            
-            # Get edges using Cypher
-            edge_query = """
-            MATCH (from)-[r]->(to)
-            WHERE elementId(from) IN $vertex_ids AND elementId(to) IN $vertex_ids
-            RETURN from, r, to
-            """
-            
-            edge_result = session.run(edge_query, vertex_ids=list(seen_ids))
-            
-            seen_edge_ids = set()
-            formatted_edges = []
-            edge_counter = 0
-
-            for record in edge_result:
-                from_node = record["from"]
-                relationship = record["r"]
-                to_node = record["to"]
+            # Get ALL relationships between any vertices in our final set
+            # Only get relationships if not in show_nodes_only_search mode
+            if not show_nodes_only_search:
+                logger.info("Getting relationships between vertices...")
                 
-                edge_id = str(relationship.element_id)
-                if edge_id in seen_edge_ids:
-                    continue
-                seen_edge_ids.add(edge_id)
+                # Get relationships using Cypher
+                relationship_query = """
+                MATCH (from)-[r]->(to)
+                WHERE elementId(from) IN $node_ids AND elementId(to) IN $node_ids
+                RETURN from, r, to
+                """
+                
+                relationship_result = session.run(relationship_query, node_ids=list(seen_ids))
+                
+                seen_relationship_ids = set()
+                formatted_relationships = []
+                relationship_counter = 0
 
-                from_v = str(from_node.element_id)
-                to_v = str(to_node.element_id)
-                label = relationship.type
-                # Use dynamic color assignment for edges
-                style = get_edge_color(label)
+                for record in relationship_result:
+                    from_node = record["from"]
+                    relationship = record["r"]
+                    to_node = record["to"]
+                    
+                    relationship_id = str(relationship.element_id)
+                    if relationship_id in seen_relationship_ids:
+                        continue
+                    seen_relationship_ids.add(relationship_id)
 
-                formatted_edges.append({
-                    'id': f'e{edge_counter}',
-                    'from': from_v,
-                    'to': to_v,
-                    'label': label,
-                    'title': label,
-                    'color': style['color'],
-                    'width': style['width'],
-                    'dashes': style['dashes'],
-                    'arrows': {'to': {'enabled': True, 'type': 'arrow'}}
-                })
-                edge_counter += 1
+                    from_v = str(from_node.element_id)
+                    to_v = str(to_node.element_id)
+                    label = relationship.type
+                    # Use dynamic color assignment for relationships
+                    style = get_relationship_color(label)
 
-        logger.info(f"Final counts - Vertices: {len(vertices)}, Edges: {len(formatted_edges)}")
+                    formatted_relationships.append({
+                        'id': f'e{relationship_counter}',
+                        'from': from_v,
+                        'to': to_v,
+                        'label': label,
+                        'title': label,
+                        'color': style['color'],
+                        'width': style['width'],
+                        'dashes': style['dashes'],
+                        'arrows': {'to': {'enabled': True, 'type': 'arrow'}}
+                    })
+                    relationship_counter += 1
+            else:
+                # No relationships when show_nodes_only_search is True
+                formatted_relationships = []
+
+        logger.info(f"Final counts - Nodes: {len(nodes)}, Relationships: {len(formatted_relationships)}")
 
         # Build the final color mappings for the frontend
-        final_vertex_colors = {}
-        final_edge_colors = {}
+        final_node_colors = {}
+        final_relationship_colors = {}
         
         # Add fixed colors for source and observation
-        final_vertex_colors['source'] = VERTEX_COLORS['source']
-        final_vertex_colors['observation_of_identity'] = VERTEX_COLORS['observation_of_identity']
+        final_node_colors['source'] = NODE_COLORS['source']
+        final_node_colors['observation_of_identity'] = NODE_COLORS['observation_of_identity']
         
         # Add dynamically assigned colors
-        for vertex_type, color in VERTEX_COLOR_ASSIGNMENTS.items():
-            final_vertex_colors[vertex_type] = color
+        for node_type, color in NODE_COLOR_ASSIGNMENTS.items():
+            final_node_colors[node_type] = color
         
-        for edge_type, color in EDGE_COLOR_ASSIGNMENTS.items():
-            final_edge_colors[edge_type] = color
+        for relationship_type, color in RELATIONSHIP_COLOR_ASSIGNMENTS.items():
+            final_relationship_colors[relationship_type] = color
 
         result = {
-            'vertices': vertices,
-            'edges': formatted_edges,
+            'nodes': nodes,
+            'relationships': formatted_relationships,
             'metadata': {
-                'vertexCount': len(vertices),
-                'edgeCount': len(formatted_edges),
-                'vertexColors': final_vertex_colors,
-                'edgeColors': final_edge_colors
+                'nodeCount': len(nodes),
+                'relationshipCount': len(formatted_relationships),
+                'nodeColors': final_node_colors,
+                'relationshipColors': final_relationship_colors
             }
         }
 
         return result
     except Exception as e:
         logger.error(f"Error getting graph data: {str(e)}")
-        raise Exception(f"Vertex query failed: {str(e)}")
+        raise Exception(f"Node query failed: {str(e)}")
     
 
-def make_fake_graph_data(search_type=None, search_value=None, search_operator=None, vertex_type=None, num_hops=2, num_connections_show_all_overlaps=2):
-    # Create fake vertex and edge color assignments for consistency
-    fake_vertex_colors = {
-        'source': VERTEX_COLORS['source'],
-        'observation_of_identity': VERTEX_COLORS['observation_of_identity'],
-        'email_address': VERTEX_COLORS['vertex_color_options'][0],
-        'ip_address': VERTEX_COLORS['vertex_color_options'][1], 
-        'phone_number': VERTEX_COLORS['vertex_color_options'][2],
-        'address': VERTEX_COLORS['vertex_color_options'][3],
-        'name': VERTEX_COLORS['vertex_color_options'][4]
+def make_fake_graph_data(search_type=None, search_value=None, search_operator=None, node_type=None, num_hops=2, num_connections_show_all_overlaps=2, show_nodes_only_search=False):
+    # Create fake node and relationship color assignments for consistency
+    fake_node_colors = {
+        'source': NODE_COLORS['source'],
+        'observation_of_identity': NODE_COLORS['observation_of_identity'],
+        'email_address': NODE_COLORS['node_color_options'][0],
+        'ip_address': NODE_COLORS['node_color_options'][1], 
+        'phone_number': NODE_COLORS['node_color_options'][2],
+        'address': NODE_COLORS['node_color_options'][3],
+        'name': NODE_COLORS['node_color_options'][4]
     }
     
-    fake_edge_colors = {
-        'has_observation': EDGE_COLORS_OPTIONS[5],
-        'has_email': EDGE_COLORS_OPTIONS[0],
-        'has_ip': EDGE_COLORS_OPTIONS[1],
-        'has_phone': EDGE_COLORS_OPTIONS[2], 
-        'has_address': EDGE_COLORS_OPTIONS[3],
-        'has_name': EDGE_COLORS_OPTIONS[4]
+    fake_relationship_colors = {
+        'has_observation': RELATIONSHIP_COLORS_OPTIONS[5],
+        'has_email': RELATIONSHIP_COLORS_OPTIONS[0],
+        'has_ip': RELATIONSHIP_COLORS_OPTIONS[1],
+        'has_phone': RELATIONSHIP_COLORS_OPTIONS[2], 
+        'has_address': RELATIONSHIP_COLORS_OPTIONS[3],
+        'has_name': RELATIONSHIP_COLORS_OPTIONS[4]
     }
     
     # Define the complete fake dataset
-    all_vertices = [
-        # Source vertices (observations)
+    all_nodes = [
+        # Source nodes (observations)
         {
             'id': 'obs1',
             'label': 'Social Media Post 1',
@@ -622,7 +742,7 @@ def make_fake_graph_data(search_type=None, search_value=None, search_operator=No
             },
             'num_observations': 1
         },
-        # Observation vertices
+        # Observation nodes
         {
             'id': 'obs_id1',
             'label': 'John Smith (obs1)',
@@ -662,7 +782,7 @@ def make_fake_graph_data(search_type=None, search_value=None, search_operator=No
             },
             'num_observations': 1
         },
-        # Identity vertices (with some overlaps)
+        # Identity nodes (with some overlaps)
         {
             'id': 'email1',
             'label': 'john.smith@email.com',
@@ -714,7 +834,7 @@ def make_fake_graph_data(search_type=None, search_value=None, search_operator=No
         }
     ]
     
-    all_edges = [
+    all_relationships = [
         # Source to observation connections
         {'id': 'e1', 'from': 'obs1', 'to': 'obs_id1', 'label': 'has_observation'},
         {'id': 'e2', 'from': 'obs2', 'to': 'obs_id2', 'label': 'has_observation'},
@@ -736,151 +856,159 @@ def make_fake_graph_data(search_type=None, search_value=None, search_operator=No
     # If no search parameters, return all data
     if not search_type:
         return {
-            'vertices': all_vertices,
-            'edges': all_edges,
+            'relationships': all_nodes,
+            'relationships': all_relationships,
             'metadata': {
-                'vertexCount': len(all_vertices),
-                'edgeCount': len(all_edges),
-                'vertexColors': fake_vertex_colors,
-                'edgeColors': fake_edge_colors
+                'nodeCount': len(all_nodes),
+                'relationshipCount': len(all_relationships),
+                'nodeColors': fake_node_colors,
+                'relationshipColors': fake_relationship_colors
             }
         }
     
-    # Filter vertices based on search parameters
-    filtered_vertices = []
-    if search_type == 'vertexValue':
-        # Find vertices that match the search criteria
-        for vertex in all_vertices:
-            if vertex['group'] == vertex_type or not vertex_type:
-                vertex_value = vertex.get('label', '')
-                if search_operator == 'equals' and vertex_value.lower() == search_value.lower():
-                    filtered_vertices.append(vertex)
-                elif search_operator == 'contains' and search_value.lower() in vertex_value.lower():
-                    filtered_vertices.append(vertex)
+    # Filter nodes based on search parameters
+    filtered_nodes = []
+    if search_type == 'nodeValue':
+        # Find nodes that match the search criteria
+        for node in all_nodes:
+            if node['group'] == node_type or not node_type:
+                node_value = node.get('label', '')
+                if search_operator == 'equals' and node_value.lower() == search_value.lower():
+                    filtered_nodes.append(node)
+                elif search_operator == 'contains' and search_value.lower() in node_value.lower():
+                    filtered_nodes.append(node)
     
     elif search_type == 'showAllOverlaps':
-        # Find vertices with multiple observations
-        for vertex in all_vertices:
-            if vertex['num_observations'] >= num_connections_show_all_overlaps:
-                filtered_vertices.append(vertex)
+        # Find nodes with multiple observations
+        for node in all_nodes:
+            if node['num_observations'] >= num_connections_show_all_overlaps:
+                filtered_nodes.append(node)
     
     # Debug logging
-    logger.info(f"Search parameters: type={search_type}, value={search_value}, operator={search_operator}, vertex_type={vertex_type}")
-    logger.info(f"Filtered vertices found: {len(filtered_vertices)}")
-    for v in filtered_vertices:
+    logger.info(f"Search parameters: type={search_type}, value={search_value}, operator={search_operator}, node_type={node_type}")
+    logger.info(f"Filtered nodes found: {len(filtered_nodes)}")
+    for v in filtered_nodes:
         logger.info(f"  - {v['id']} ({v['group']}): {v['label']}")
     
-    # If no matching vertices found, return empty result
-    if not filtered_vertices:
+    # If no matching nodes found, return empty result
+    if not filtered_nodes:
         return {
-            'vertices': [],
-            'edges': [],
+            'relationships': [],
+            'relationships': [],
             'metadata': {
-                'vertexCount': 0,
-                'edgeCount': 0,
-                'vertexColors': fake_vertex_colors,
-                'edgeColors': fake_edge_colors
+                'nodeCount': 0,
+                'relationshipCount': 0,
+                'nodeColors': fake_node_colors,
+                'relationshipColors': fake_relationship_colors
             }
         }
     
-    # Get vertices within num_hops of the filtered vertices
-    included_vertices = set()
-    included_edges = []
+    # Get nodes within num_hops of the filtered nodes
+    included_nodes = set()
+    included_relationships = []
     
-    # Add the filtered vertices
-    for vertex in filtered_vertices:
-        included_vertices.add(vertex['id'])
+    # Add the filtered nodes
+    for node in filtered_nodes:
+        included_nodes.add(node['id'])
     
-    logger.info(f"Starting with {len(included_vertices)} filtered vertices: {included_vertices}")
+    logger.info(f"Starting with {len(included_nodes)} filtered nodes: {included_nodes}")
     
-    # Add vertices within num_hops
-    for hop in range(num_hops):
-        new_vertices = set()
-        for edge in all_edges:
-            from_id = edge['from']
-            to_id = edge['to']
+    # If show_nodes_only_search is True, only return the filtered nodes
+    if show_nodes_only_search:
+        logger.info("Show nodes only search is enabled - only returning filtered nodes")
+        final_nodes = filtered_nodes
+        final_relationships = []
+    else:
+        # Add nodes within num_hops
+        for hop in range(num_hops):
+            new_nodes = set()
+            for relationship in all_relationships:
+                from_id = relationship['from']
+                to_id = relationship['to']
+                
+                # If one end is included, add the other end and the relationship
+                if from_id in included_nodes and to_id not in included_nodes:
+                    new_nodes.add(to_id)
+                    included_relationships.append(relationship)
+                elif to_id in included_nodes and from_id not in included_nodes:
+                    new_nodes.add(from_id)
+                    included_relationships.append(relationship)
+                elif from_id in included_nodes and to_id in included_nodes:
+                    # Both nodes are included, add relationship if not already added
+                    if relationship not in included_relationships:
+                        included_relationships.append(relationship)
             
-            # If one end is included, add the other end and the edge
-            if from_id in included_vertices and to_id not in included_vertices:
-                new_vertices.add(to_id)
-                included_edges.append(edge)
-            elif to_id in included_vertices and from_id not in included_vertices:
-                new_vertices.add(from_id)
-                included_edges.append(edge)
-            elif from_id in included_vertices and to_id in included_vertices:
-                # Both vertices are included, add edge if not already added
-                if edge not in included_edges:
-                    included_edges.append(edge)
+            included_nodes.update(new_nodes)
+            logger.info(f"After hop {hop + 1}: {len(included_nodes)} nodes, {len(included_relationships)} relationships")
         
-        included_vertices.update(new_vertices)
-        logger.info(f"After hop {hop + 1}: {len(included_vertices)} vertices, {len(included_edges)} edges")
+        # Special handling: Always include source nodes that are connected to any included observation nodes
+        # This ensures that when we find identity nodes, we also show their source observations
+        source_nodes = set()
+        for node in all_nodes:
+            if node['group'] == 'source':
+                # Check if this source is connected to any included observation nodes
+                for relationship in all_relationships:
+                    if relationship['label'] == 'has_observation':
+                        # In fake data: source -> observation (from: source, to: observation)
+                        if relationship['from'] == node['id'] and relationship['to'] in included_nodes:
+                            source_nodes.add(node['id'])
+                            # Add the relationship connecting source to observation
+                            if relationship not in included_relationships:
+                                included_relationships.append(relationship)
+                                logger.info(f"Added source node {node['id']} connected to observation {relationship['to']}")
+                        # Also check reverse direction in case relationship direction is different
+                        elif relationship['to'] == node['id'] and relationship['from'] in included_nodes:
+                            source_nodes.add(node['id'])
+                            # Add the relationship connecting observation to source
+                            if relationship not in included_relationships:
+                                included_relationships.append(relationship)
+                                logger.info(f"Added source node {node['id']} connected from observation {relationship['from']}")
+        
+        logger.info(f"Found {len(source_nodes)} source nodes to include: {source_nodes}")
+        
+        # Add source nodes to included set
+        included_nodes.update(source_nodes)
+        
+        # Get the final nodes and relationships
+        final_nodes = [v for v in all_nodes if v['id'] in included_nodes]
+        final_relationships = included_relationships
     
-    # Special handling: Always include source nodes that are connected to any included observation nodes
-    # This ensures that when we find identity nodes, we also show their source observations
-    source_vertices = set()
-    for vertex in all_vertices:
-        if vertex['group'] == 'source':
-            # Check if this source is connected to any included observation nodes
-            for edge in all_edges:
-                if edge['label'] == 'has_observation':
-                    # In fake data: source -> observation (from: source, to: observation)
-                    if edge['from'] == vertex['id'] and edge['to'] in included_vertices:
-                        source_vertices.add(vertex['id'])
-                        # Add the edge connecting source to observation
-                        if edge not in included_edges:
-                            included_edges.append(edge)
-                            logger.info(f"Added source vertex {vertex['id']} connected to observation {edge['to']}")
-                    # Also check reverse direction in case edge direction is different
-                    elif edge['to'] == vertex['id'] and edge['from'] in included_vertices:
-                        source_vertices.add(vertex['id'])
-                        # Add the edge connecting observation to source
-                        if edge not in included_edges:
-                            included_edges.append(edge)
-                            logger.info(f"Added source vertex {vertex['id']} connected from observation {edge['from']}")
+    # Recalculate num_observations for nodes based on actual connections in the final result
+    # Only do this when not in show_nodes_only_search mode
+    if not show_nodes_only_search:
+        for node in final_nodes:
+            if node['group'] not in ['source', 'observation_of_identity']:
+                # Count how many observation nodes are connected to this node in the final result
+                observation_count = 0
+                for relationship in final_relationships:
+                    if relationship['label'].startswith('has_') and relationship['to'] == node['id']:
+                        # Check if the 'from' node is an observation
+                        from_node = next((v for v in final_nodes if v['id'] == relationship['from']), None)
+                        if from_node and from_node['group'] == 'observation_of_identity':
+                            observation_count += 1
+                
+                # Update the node with the correct observation count
+                node['num_observations'] = observation_count
+                node['is_shared'] = observation_count > 1
+                
+                # Update the label to include observation count if multiple observations
+                if observation_count > 1:
+                    # Remove any existing observation count from the label
+                    import re
+                    base_label = re.sub(r'(\n| )?\(\d+ obs\)', '', node['label'])
+                    node['label'] = f"{base_label}\n({observation_count} obs)"
     
-    logger.info(f"Found {len(source_vertices)} source vertices to include: {source_vertices}")
-    
-    # Add source vertices to included set
-    included_vertices.update(source_vertices)
-    
-    # Get the final vertices and edges
-    final_vertices = [v for v in all_vertices if v['id'] in included_vertices]
-    final_edges = included_edges
-    
-    # Recalculate num_observations for vertices based on actual connections in the final result
-    for vertex in final_vertices:
-        if vertex['group'] not in ['source', 'observation_of_identity']:
-            # Count how many observation vertices are connected to this vertex in the final result
-            observation_count = 0
-            for edge in final_edges:
-                if edge['label'].startswith('has_') and edge['to'] == vertex['id']:
-                    # Check if the 'from' vertex is an observation
-                    from_vertex = next((v for v in final_vertices if v['id'] == edge['from']), None)
-                    if from_vertex and from_vertex['group'] == 'observation_of_identity':
-                        observation_count += 1
-            
-            # Update the vertex with the correct observation count
-            vertex['num_observations'] = observation_count
-            vertex['is_shared'] = observation_count > 1
-            
-            # Update the label to include observation count if multiple observations
-            if observation_count > 1:
-                # Remove any existing observation count from the label
-                import re
-                base_label = re.sub(r'(\n| )?\(\d+ obs\)', '', vertex['label'])
-                vertex['label'] = f"{base_label}\n({observation_count} obs)"
-    
-    logger.info(f"Final result: {len(final_vertices)} vertices, {len(final_edges)} edges")
-    logger.info(f"Final vertices: {[v['id'] for v in final_vertices]}")
+    logger.info(f"Final result: {len(final_nodes)} nodes, {len(final_relationships)} relationships")
+    logger.info(f"Final nodes: {[v['id'] for v in final_nodes]}")
     
     return {
-        'vertices': final_vertices,
-        'edges': final_edges,
+        'relationships': final_nodes,
+        'relationships': final_relationships,
         'metadata': {
-            'vertexCount': len(final_vertices),
-            'edgeCount': len(final_edges),
-            'vertexColors': fake_vertex_colors,
-            'edgeColors': fake_edge_colors
+            'nodeCount': len(final_nodes),
+            'relationshipCount': len(final_relationships),
+            'nodeColors': fake_node_colors,
+            'relationshipColors': fake_relationship_colors
         }
     }
 
@@ -889,13 +1017,13 @@ def api_find_paths():
     logger.info("API request received for finding paths...")
     try:
         # Get parameters from the request
-        from_vertex_id = request.args.get('fromVertexId')
-        to_vertex_id = request.args.get('toVertexId')
+        from_node_id = request.args.get('fromNodeId')
+        to_node_id = request.args.get('toNodeId')
         max_depth = request.args.get('maxDepth',FIND_PATHS_MAX_DEPTH)
         
-        if not from_vertex_id or not to_vertex_id:
+        if not from_node_id or not to_node_id:
             return jsonify({
-                'error': 'Both fromVertexId and toVertexId are required',
+                'error': 'Both fromNodeId and toNodeId are required',
                 'type': 'Missing parameters'
             }), 400
         
@@ -904,7 +1032,7 @@ def api_find_paths():
         except (ValueError, TypeError):
             max_depth = FIND_PATHS_MAX_DEPTH
         
-        logger.info(f"Finding paths from {from_vertex_id} to {to_vertex_id} with max depth {max_depth}")
+        logger.info(f"Finding paths from {from_node_id} to {to_node_id} with max depth {max_depth}")
         
         # Establish Neo4j connection
         driver = get_neo4j_connection()
@@ -913,14 +1041,14 @@ def api_find_paths():
             # First, find the shortest path length
             shortest_length_query = """
             MATCH (start), (end)
-            WHERE elementId(start) = $from_vertex_id AND elementId(end) = $to_vertex_id
+            WHERE elementId(start) = $from_node_id AND elementId(end) = $to_node_id
             MATCH p = shortestPath((start)-[*1..{max_depth}]-(end))
             RETURN length(p) as pathLength
             LIMIT 1
             """
             
             shortest_result = session.run(shortest_length_query.format(max_depth=max_depth), 
-                                        from_vertex_id=from_vertex_id, to_vertex_id=to_vertex_id)
+                                        from_node_id=from_node_id, to_node_id=to_node_id)
             shortest_record = shortest_result.single()
             
             if not shortest_record:
@@ -936,37 +1064,37 @@ def api_find_paths():
             # Now find all paths of the shortest length
             all_paths_query = f"""
             MATCH (start), (end)
-            WHERE elementId(start) = $from_vertex_id AND elementId(end) = $to_vertex_id
+            WHERE elementId(start) = $from_node_id AND elementId(end) = $to_node_id
             MATCH p = (start)-[*{shortest_length}]-(end)
-            RETURN nodes(p) AS pathNodes, relationships(p) AS pathEdges
+            RETURN nodes(p) AS pathNodes, relationships(p) AS pathRelationsihps
             """
             
-            result = session.run(all_paths_query, from_vertex_id=from_vertex_id, to_vertex_id=to_vertex_id)
+            result = session.run(all_paths_query, from_node_id=from_node_id, to_node_id=to_node_id)
             
             paths = []
             for record in result:
                 path_nodes = record["pathNodes"]
-                path_edges = record["pathEdges"]
+                path_relationships = record["pathRelationsihps"]
                 
-                # Convert nodes to vertex IDs
+                # Convert nodes to node IDs
                 node_ids = [str(node.element_id) for node in path_nodes]
                 
-                # Convert edges to edge information
-                edge_info = []
-                for edge in path_edges:
-                    edge_info.append({
-                        'id': str(edge.element_id),
-                        'from': str(edge.start_node.element_id),
-                        'to': str(edge.end_node.element_id),
-                        'label': edge.type
+                # Convert relationships to relationship information
+                relationship_info = []
+                for relationship in path_relationships:
+                    relationship_info.append({
+                        'id': str(relationship.element_id),
+                        'from': str(relationship.start_node.element_id),
+                        'to': str(relationship.end_node.element_id),
+                        'label': relationship.type
                     })
                 
                 paths.append({
                     'nodes': node_ids,
-                    'edges': edge_info
+                    'relationships': relationship_info
                 })
             
-            logger.info(f"Found {len(paths)} paths between vertices")
+            logger.info(f"Found {len(paths)} paths between nodes")
             
             # Close Neo4j connection
             driver.close()

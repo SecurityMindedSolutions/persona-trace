@@ -38,8 +38,8 @@ console = Console()
 # Max depth for finding paths if it's not given in the request
 FIND_PATHS_MAX_DEPTH = 10
 
-# Static color definitions for each vertex type
-VERTEX_COLORS = {
+# Static color definitions for each node type
+NODE_COLORS = {
     #########################################################
     #########################################################
     # Source - Orange
@@ -59,14 +59,14 @@ VERTEX_COLORS = {
 
     #########################################################
     #########################################################
-    # Color options for each vertex type
+    # Color options for each node type
     # Default fallback
     'default': {
         'background': '#D3D3D3',  # Light Gray
         'border': '#808080'       # Gray
     },
 
-    'vertex_color_options': [
+    'node_color_options': [
         {
             'background': '#D8E6F2',  # Dull light blue
             'border': '#B8C6D2'       # Darker dull blue
@@ -144,8 +144,8 @@ VERTEX_COLORS = {
 
 }
 
-# Static color definitions for edge types
-EDGE_COLORS_OPTIONS = [
+# Static color definitions for relationship types
+RELATIONSHIP_COLORS_OPTIONS = [
     {'color': '#708090', 'width': 2, 'dashes': True},   # Slate Gray
     {'color': '#556B2F', 'width': 2, 'dashes': True},   # Dark Olive Green
     {'color': '#8B4513', 'width': 2, 'dashes': True},   # Saddle Brown
