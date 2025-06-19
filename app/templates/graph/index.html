@@ -162,6 +162,9 @@
                         <div class="card-header bg-secondary-subtle" role="button" data-bs-toggle="collapse" data-bs-target="#sharedIdentifierSearchCollapse" aria-expanded="true" aria-controls="sharedIdentifierSearchCollapse" style="cursor: pointer;">
                             <div class="d-flex justify-content-between align-items-center">
                                 <h5 class="card-title mb-0 text-primary-emphasis">Shared Identifier Search</h5>
+                                <div class="chevron-wrapper d-flex align-items-center">
+                                    <i class="bi bi-chevron-down"></i>
+                                </div>
                             </div>
                         </div>
                         <div class="collapse show" id="sharedIdentifierSearchCollapse">
@@ -809,8 +812,7 @@
                     clusterSameTypeNodes();
                     
                     // Update stats
-                    document.getElementById('nodeCount').textContent = `Nodes: ${nodes.length}`;
-                    document.getElementById('relationshipCount').textContent = `Relationships: ${relationships.length}`;
+                    updateStats();
                     
                     // Initialize filters and selectors
                     initializeFilters();
@@ -1197,6 +1199,9 @@
                         // Re-enable physics after a short delay
                         await new Promise(resolve => setTimeout(resolve, 500));
                         togglePhysics(true);
+                        
+                        // Update stats to reflect visible relationship count
+                        updateStats();
                         return;
                     }
 
@@ -1253,6 +1258,9 @@
                     // Re-enable physics after a short delay
                     await new Promise(resolve => setTimeout(resolve, 500));
                     togglePhysics(true);
+                    
+                    // Update stats to reflect visible relationship count
+                    updateStats();
                 } catch (error) {
                     console.error('Error updating focus:', error);
                     showError('Failed to update focus view. Please try again.', 'Focus Error');
@@ -1321,6 +1329,9 @@
                         dashes: relationshipStyle.dashes
                     });
                 });
+                
+                // Update stats to reflect visible relationship count
+                updateStats();
             }
 
             function updateNodeVisibility() {
@@ -1911,6 +1922,9 @@
                         },
                         scale: 0.1  // This will make the view even more zoomed out
                     });
+                    
+                    // Update stats to reflect visible relationship count
+                    updateStats();
                 });
 
                 // Show Overlaps functionality
@@ -2047,6 +2061,9 @@
                             },
                             scale: 0.1  // Scale way out to show more of the graph
                         });
+                        
+                        // Update stats to reflect visible relationship count
+                        updateStats();
                     } catch (error) {
                         console.error('Error processing overlaps:', error);
                         alert(error.message || 'Failed to process overlaps. Please try again.');
@@ -2215,6 +2232,9 @@
                             },
                             scale: 0.1  // This will make the view even more zoomed out
                         });
+                        
+                        // Update stats to reflect visible relationship count
+                        updateStats();
                     });
                 }
 
@@ -2521,6 +2541,17 @@
                     color: { opacity: 0 },
                     ...relationshipOptions
                 });
+            }
+
+            // Function to count visible relationships
+            function countVisibleRelationships() {
+                return relationships.get().filter(relationship => !relationship.hidden).length;
+            }
+
+            // Function to update stats display
+            function updateStats() {
+                document.getElementById('nodeCount').textContent = `Nodes: ${nodes.length}`;
+                document.getElementById('relationshipCount').textContent = `Relationships: ${countVisibleRelationships()}`;
             }
         </script>
     </div>
