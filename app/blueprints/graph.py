@@ -70,7 +70,8 @@ def api_graph_data():
                 node_type=node_type,
                 num_hops=num_hops_node_search if search_type == 'nodeValue' else num_hops_show_all_overlaps,
                 num_connections_show_all_overlaps=num_connections_show_all_overlaps,
-                show_nodes_only_search=show_nodes_only_search
+                show_nodes_only_search=show_nodes_only_search,
+                initial_nodes=[]  # For fake data, we'll determine initial nodes within the function
             )
             
             # Return fake data
@@ -80,7 +81,6 @@ def api_graph_data():
                 'metadata': {
                     'nodeCount': len(fake_data['relationships']),
                     'relationshipCount': len(fake_data['relationships']),
-                    'nodeColors': fake_data['metadata']['nodeColors'],
                     'relationshipColors': fake_data['metadata']['relationshipColors']
                 }
             })
@@ -130,7 +130,10 @@ def api_graph_data():
             search_type=search_type,
             initial_nodes=initial_nodes,
             num_hops=num_hops_node_search if search_type == 'nodeValue' else num_hops_show_all_overlaps,
-            show_nodes_only_search=show_nodes_only_search
+            show_nodes_only_search=show_nodes_only_search,
+            search_value=search_value,
+            search_operator=search_operator,
+            node_type=node_type
         )
 
         logger.info(f"Final node count: {len(data['nodes'])}")
@@ -486,7 +489,7 @@ def flatten_properties(props, prefix=''):
     return flat
 
 
-def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only_search=False):
+def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only_search=False, search_value=None, search_operator=None, node_type=None):
     try:
         nodes = []
         seen_ids = set()
@@ -569,6 +572,16 @@ def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only
                 name = v.get('name', value)
                 # Use dynamic color assignment
                 color = get_node_color(raw_label)
+
+                # Check if this is an initial search node (is in the initial_nodes list)
+                is_initial_search_node = any(str(init_node.get('elementId', init_node)) == v_id for init_node in initial_nodes)
+
+                # Apply bolded color for initial search nodes
+                if is_initial_search_node:
+                    color = {
+                        'background': '#FFD700',  # Gold background
+                        'border': '#FF4500'       # OrangeRed border
+                    }
 
                 # For identifier vertices, count the number of observations
                 # Only count for node types that are not source or observation_of_identity
@@ -657,17 +670,9 @@ def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only
         logger.info(f"Final counts - Nodes: {len(nodes)}, Relationships: {len(formatted_relationships)}")
 
         # Build the final color mappings for the frontend
-        final_node_colors = {}
         final_relationship_colors = {}
         
-        # Add fixed colors for source and observation
-        final_node_colors['source'] = NODE_COLORS['source']
-        final_node_colors['observation_of_identity'] = NODE_COLORS['observation_of_identity']
-        
         # Add dynamically assigned colors
-        for node_type, color in NODE_COLOR_ASSIGNMENTS.items():
-            final_node_colors[node_type] = color
-        
         for relationship_type, color in RELATIONSHIP_COLOR_ASSIGNMENTS.items():
             final_relationship_colors[relationship_type] = color
 
@@ -677,7 +682,6 @@ def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only
             'metadata': {
                 'nodeCount': len(nodes),
                 'relationshipCount': len(formatted_relationships),
-                'nodeColors': final_node_colors,
                 'relationshipColors': final_relationship_colors
             }
         }
@@ -688,7 +692,7 @@ def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only
         raise Exception(f"Node query failed: {str(e)}")
     
 
-def make_fake_graph_data(search_type=None, search_value=None, search_operator=None, node_type=None, num_hops=2, num_connections_show_all_overlaps=2, show_nodes_only_search=False):
+def make_fake_graph_data(search_type=None, search_value=None, search_operator=None, node_type=None, num_hops=2, num_connections_show_all_overlaps=2, show_nodes_only_search=False, initial_nodes=[]):
     # Create fake node and relationship color assignments for consistency
     fake_node_colors = {
         'source': NODE_COLORS['source'],
@@ -998,16 +1002,33 @@ def make_fake_graph_data(search_type=None, search_value=None, search_operator=No
                     base_label = re.sub(r'(\n| )?\(\d+ obs\)', '', node['label'])
                     node['label'] = f"{base_label}\n({observation_count} obs)"
     
+    # Apply bolded colors to initial search nodes
+    for node in final_nodes:
+        # Check if this is an initial search node (is in the filtered_nodes list)
+        is_initial_search_node = any(filtered_node['id'] == node['id'] for filtered_node in filtered_nodes)
+
+        # Apply bolded color for initial search nodes
+        if is_initial_search_node:
+            node['color'] = {
+                'background': '#FFD700',  # Gold background
+                'border': '#FF4500'       # OrangeRed border
+            }
+        else:
+            # Use normal color from fake_node_colors
+            node['color'] = fake_node_colors.get(node['group'], {
+                'background': '#D3D3D3',
+                'border': '#808080'
+            })
+    
     logger.info(f"Final result: {len(final_nodes)} nodes, {len(final_relationships)} relationships")
     logger.info(f"Final nodes: {[v['id'] for v in final_nodes]}")
     
     return {
-        'relationships': final_nodes,
+        'nodes': final_nodes,
         'relationships': final_relationships,
         'metadata': {
             'nodeCount': len(final_nodes),
             'relationshipCount': len(final_relationships),
-            'nodeColors': fake_node_colors,
             'relationshipColors': fake_relationship_colors
         }
     }

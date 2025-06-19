@@ -728,15 +728,9 @@
                     
                     // Process and add nodes
                     const processedNodes = data.nodes.map(node => {
-                        const nodeStyle = data.metadata.nodeColors[node.group] || defaultStyles.node;
                         const isOverlapping = node.num_observations > 1 && 
                                            node.group !== 'source' && 
                                            node.group !== 'observation_of_identity';
-                        
-                        // Check if this is the searched-for node
-                        const isSearchedNode = searchParams && searchParams.get('searchType') === 'nodeValue' && 
-                                             searchParams.get('searchValue') && 
-                                             node.label.toLowerCase().includes(searchParams.get('searchValue').toLowerCase());
                         
                         // Add observation count to label for overlapping nodes
                         let displayLabel = node.label;
@@ -746,35 +740,34 @@
                             displayLabel = `${displayLabel}\n(${node.num_observations} obs)`;
                         }
 
+                        // Use the node's color property from the backend, but add hover/highlight colors
+                        const nodeColor = node.color || defaultStyles.node;
+                        const finalColor = {
+                            background: nodeColor.background,
+                            border: nodeColor.border,
+                            highlight: {
+                                background: '#FFFFFF',  // Consistent white background on hover
+                                border: '#007BFF'       // Blue border to make it stand out
+                            },
+                            hover: {
+                                background: '#FFFFFF',
+                                border: '#007BFF'
+                            }
+                        };
+
                         return {
                             ...node,
                             label: displayLabel,
-                            color: {
-                                background: isSearchedNode ? '#FFD700' : nodeStyle.background, // Gold background for searched node
-                                border: isSearchedNode ? '#FF4500' : (isOverlapping ? '#FFA500' : nodeStyle.border), // OrangeRed border for searched node
-                                highlight: {
-                                    background: '#FFFFFF',  // Consistent white background on hover
-                                    border: '#007BFF'       // Blue border to make it stand out
-                                },
-                                hover: {
-                                    background: '#FFFFFF',
-                                    border: '#007BFF'
-                                }
-                            },
-                            size: isSearchedNode ? 60 : (isOverlapping ? 45 : 30), // Larger size for searched node
-                            borderWidth: isSearchedNode ? 5 : (isOverlapping ? 3 : 1), // Thicker border for searched node
+                            color: finalColor,
+                            originalColor: nodeColor, // Store the backend color for restoration
+                            size: isOverlapping ? 45 : 30,
+                            borderWidth: isOverlapping ? 3 : 1,
                             font: {
                                 color: '#000000',
-                                size: isSearchedNode ? 35 : (isOverlapping ? 30 : 25), // Larger font for searched node
-                                bold: isSearchedNode || isOverlapping
+                                size: isOverlapping ? 30 : 25,
+                                bold: isOverlapping
                             },
-                            shadow: isSearchedNode ? {
-                                enabled: true,
-                                color: 'rgba(255, 69, 0, 0.4)', // OrangeRed shadow for searched node
-                                size: 15,
-                                x: 0,
-                                y: 0
-                            } : (isOverlapping ? {
+                            shadow: isOverlapping ? {
                                 enabled: true,
                                 color: 'rgba(255, 165, 0, 0.3)',
                                 size: 10,
@@ -782,7 +775,7 @@
                                 y: 0
                             } : {
                                 enabled: false
-                            })
+                            }
                         };
                     });
 
@@ -1020,12 +1013,13 @@
             function highlightPaths(paths) {
                 // Reset all nodes to backend color and default appearance
                 nodes.get().forEach(node => {
-                    const nodeColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
+                    const nodeColor = node.originalColor || defaultStyles.node;
+                    const isShared = node.is_shared === true;
                     nodes.update({
                         id: node.id,
                         color: {
                             background: nodeColor.background,
-                            border: node.is_shared ? '#FFA500' : nodeColor.border,
+                            border: isShared ? '#FFA500' : nodeColor.border,
                             highlight: {
                                 background: '#FFFFFF',  // Consistent white background on hover
                                 border: '#007BFF'       // Blue border to make it stand out
@@ -1035,8 +1029,8 @@
                                 border: '#007BFF'
                             }
                         },
-                        size: node.is_shared ? 45 : 30,
-                        borderWidth: node.is_shared ? 3 : 1,
+                        size: isShared ? 45 : 30,
+                        borderWidth: isShared ? 3 : 1,
                         font: { bold: false, size: 25 }
                     });
                 });
@@ -1059,7 +1053,11 @@
                     // Highlight nodes
                     path.forEach(nodeId => {
                         const node = nodes.get(nodeId);
-                        const nodeColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
+                        if (!node) {
+                            console.warn(`Node not found in DataSet: ${nodeId}`);
+                            return;
+                        }
+                        const nodeColor = node.originalColor || defaultStyles.node;
                         nodes.update({
                             id: nodeId,
                             color: {
@@ -1162,7 +1160,7 @@
                     if (!selectedNodeId) {
                         nodes.get().forEach(node => {
                             const isVisible = shouldNodeBeVisible(node);
-                            const nodeColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
+                            const nodeColor = node.color || defaultStyles.node;
                             nodes.update({ 
                                 id: node.id, 
                                 hidden: !isVisible,
@@ -1209,7 +1207,7 @@
                     // Update visibility and color for all nodes
                     nodes.get().forEach(node => {
                         const isVisible = connectedNodes.has(node.id) && shouldNodeBeVisible(node);
-                        const nodeColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
+                        const nodeColor = node.color || defaultStyles.node;
                         const isFocusNode = node.id === selectedNodeId;
                         
                         nodes.update({ 
@@ -1335,15 +1333,15 @@
                 // Update all nodes based on filter checkboxes
                 nodes.get().forEach(node => {
                     const isTypeVisible = document.getElementById(node.group)?.checked ?? true;
-                    const metadataColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
+                    const nodeColor = node.color || defaultStyles.node;
                     const isShared = node.is_shared === true;
                     
                     nodes.update({ 
                         id: node.id, 
                         hidden: !isTypeVisible,
                         color: {
-                            background: metadataColor.background,
-                            border: isShared ? '#FFA500' : metadataColor.border,
+                            background: nodeColor.background,
+                            border: isShared ? '#FFA500' : nodeColor.border,
                             highlight: {
                                 background: '#FFFFFF',  // Consistent white background on hover
                                 border: '#007BFF'       // Blue border to make it stand out
@@ -1857,15 +1855,15 @@
                 resetViewButton.addEventListener('click', () => {
                     // Show all nodes and reset their visibility
                     nodes.get().forEach(node => {
-                        const metadataColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
+                        const nodeColor = node.color || defaultStyles.node;
                         nodes.update({ 
                             id: node.id, 
                             hidden: false,
                             size: node.is_shared ? 45 : 30,
                             borderWidth: node.is_shared ? 3 : 1,
                             color: {
-                                background: metadataColor.background,
-                                border: node.is_shared ? '#FFA500' : metadataColor.border,
+                                background: nodeColor.background,
+                                border: node.is_shared ? '#FFA500' : nodeColor.border,
                                 highlight: {
                                     background: '#FFFFFF',  // Consistent white background on hover
                                     border: '#007BFF'       // Blue border to make it stand out
@@ -1966,7 +1964,7 @@
                         // Update visibility to show only overlap-related nodes
                         nodes.get().forEach(node => {
                             const isInOverlapView = connectedNodes.has(node.id);
-                            const metadataColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
+                            const nodeColor = node.color || defaultStyles.node;
                             const isOverlapping = node.num_observations > 1;
                             
                             // Update the label to include observation count for overlapping nodes
@@ -1982,8 +1980,8 @@
                                 hidden: !isInOverlapView,
                                 label: displayLabel,
                                 color: {
-                                    background: metadataColor.background,
-                                    border: isOverlapping ? '#FFA500' : metadataColor.border,
+                                    background: nodeColor.background,
+                                    border: isOverlapping ? '#FFA500' : nodeColor.border,
                                     highlight: {
                                         background: '#FFFFFF',  // Consistent white background on hover
                                         border: '#007BFF'       // Blue border to make it stand out
@@ -2173,7 +2171,7 @@
                     elements.resetTraceButton.addEventListener('click', () => {
                         // Restore all nodes to backend color and default appearance
                         nodes.get().forEach(node => {
-                            const nodeColor = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
+                            const nodeColor = node.color || defaultStyles.node;
                             nodes.update({
                                 id: node.id,
                                 color: {
@@ -2287,7 +2285,6 @@
                     // Restore original colors when hover ends
                     if (hoveredNodeId === params.node) {
                         const node = nodes.get(params.node);
-                        const nodeStyle = graphData.metadata.nodeColors[node.group] || defaultStyles.node;
                         const isOverlapping = node.num_observations > 1 && 
                                            node.group !== 'source' && 
                                            node.group !== 'observation_of_identity';
@@ -2296,17 +2293,16 @@
                         const nodeSelect = document.getElementById('nodeSelect');
                         const isFocusNode = nodeSelect && nodeSelect.value === params.node;
                         
-                        // Check if this is a searched-for node (from search results)
-                        const isSearchedNode = node.label && node.label.includes('(') && 
-                                             (node.label.includes('obs)') || node.label.includes('obs'));
+                        // Use the node's originalColor property from the backend
+                        const nodeColor = node.originalColor || defaultStyles.node;
                         
-                        // console.log('Restoring colors for node:', params.node, 'group:', node.group, 'style:', nodeStyle);
+                        // console.log('Restoring colors for node:', params.node, 'group:', node.group, 'color:', nodeColor);
                         
                         nodes.update({
                             id: params.node,
                             color: {
-                                background: isFocusNode ? '#FFD700' : (isSearchedNode ? '#FFD700' : nodeStyle.background),
-                                border: isFocusNode ? '#FF4500' : (isSearchedNode ? '#FF4500' : (isOverlapping ? '#FFA500' : nodeStyle.border)),
+                                background: isFocusNode ? '#FFD700' : nodeColor.background,
+                                border: isFocusNode ? '#FF4500' : (isOverlapping ? '#FFA500' : nodeColor.border),
                                 highlight: {
                                     background: '#FFFFFF',  // Keep consistent hover colors
                                     border: '#007BFF'
@@ -2316,20 +2312,14 @@
                                     border: '#007BFF'
                                 }
                             },
-                            size: isFocusNode ? 50 : (isSearchedNode ? 60 : (isOverlapping ? 45 : 30)),
-                            borderWidth: isFocusNode ? 4 : (isSearchedNode ? 5 : (isOverlapping ? 3 : 1)),
+                            size: isFocusNode ? 50 : (isOverlapping ? 45 : 30),
+                            borderWidth: isFocusNode ? 4 : (isOverlapping ? 3 : 1),
                             font: {
                                 color: '#000000',
-                                size: isFocusNode ? 30 : (isSearchedNode ? 35 : (isOverlapping ? 30 : 25)),
-                                bold: isFocusNode || isSearchedNode || isOverlapping
+                                size: isFocusNode ? 30 : (isOverlapping ? 30 : 25),
+                                bold: isFocusNode || isOverlapping
                             },
                             shadow: isFocusNode ? {
-                                enabled: true,
-                                color: 'rgba(255, 69, 0, 0.4)',
-                                size: 15,
-                                x: 0,
-                                y: 0
-                            } : (isSearchedNode ? {
                                 enabled: true,
                                 color: 'rgba(255, 69, 0, 0.4)',
                                 size: 15,
@@ -2343,7 +2333,7 @@
                                 y: 0
                             } : {
                                 enabled: false
-                            }))
+                            })
                         });
                         hoveredNodeId = null;
                     }
@@ -2455,7 +2445,9 @@
                 Array.from(nodeTypes).sort().forEach(type => {
                     if (!type) return; // Skip if type is undefined or null
                     
-                    const style = graphData.metadata.nodeColors[type] || defaultStyles.node;
+                    // Get the color from the first node of this type, or use default
+                    const firstNodeOfType = graphData.nodes.find(node => node.group === type);
+                    const style = firstNodeOfType ? firstNodeOfType.color : defaultStyles.node;
                     const checkbox = createFilterCheckbox(type, nodeFilters, false, style);
                     
                     checkbox.addEventListener('change', () => {
