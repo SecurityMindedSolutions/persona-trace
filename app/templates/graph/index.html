@@ -760,8 +760,8 @@
                             label: displayLabel,
                             color: finalColor,
                             originalColor: nodeColor, // Store the backend color for restoration
-                            size: isOverlapping ? 45 : 30,
-                            borderWidth: isOverlapping ? 3 : 1,
+                            originalBorderWidth: node.borderWidth || 1, // Store backend's actual borderWidth
+                            borderWidth: node.borderWidth || 1, // Use backend's actual borderWidth
                             font: {
                                 color: '#000000',
                                 size: isOverlapping ? 30 : 25,
@@ -1073,7 +1073,7 @@
                                 }
                             },
                             size: 45,
-                            borderWidth: 4,
+                            borderWidth: Math.max(4, node.borderWidth || 1), // Use larger of path highlight or backend borderWidth
                             font: { bold: true, size: 28 }
                         });
                     });
@@ -1166,16 +1166,17 @@
                                 hidden: !isVisible,
                                 color: {
                                     background: nodeColor.background,
-                                    border: node.is_shared ? '#FFA500' : nodeColor.border,
+                                    border: nodeColor.border, // Use backend's original border color
                                     highlight: {
-                                        background: '#FFFFFF',  // Consistent white background on hover
-                                        border: '#007BFF'       // Blue border to make it stand out
+                                        background: '#FFFFFF',
+                                        border: '#007BFF'
                                     },
                                     hover: {
                                         background: '#FFFFFF',
                                         border: '#007BFF'
                                     }
-                                }
+                                },
+                                borderWidth: node.originalBorderWidth || 1 // Preserve backend borderWidth
                             });
                         });
 
@@ -1226,7 +1227,7 @@
                                 }
                             },
                             size: isFocusNode ? 50 : (node.is_shared ? 45 : 30), // Make focus node larger
-                            borderWidth: isFocusNode ? 4 : (node.is_shared ? 3 : 1), // Thicker border for focus node
+                            borderWidth: isFocusNode ? 4 : (node.borderWidth || (node.is_shared ? 3 : 1)), // Preserve backend borderWidth
                             font: {
                                 size: isFocusNode ? 30 : 25,
                                 bold: isFocusNode
@@ -1350,7 +1351,8 @@
                                 background: '#FFFFFF',
                                 border: '#007BFF'
                             }
-                        }
+                        },
+                        borderWidth: node.originalBorderWidth || (isShared ? 3 : 1) // Preserve backend borderWidth
                     });
                 });
 
@@ -1855,18 +1857,18 @@
                 resetViewButton.addEventListener('click', () => {
                     // Show all nodes and reset their visibility
                     nodes.get().forEach(node => {
-                        const nodeColor = node.color || defaultStyles.node;
+                        const nodeColor = node.originalColor || defaultStyles.node;
                         nodes.update({ 
                             id: node.id, 
                             hidden: false,
                             size: node.is_shared ? 45 : 30,
-                            borderWidth: node.is_shared ? 3 : 1,
+                            borderWidth: node.originalBorderWidth || (node.is_shared ? 3 : 1),
                             color: {
                                 background: nodeColor.background,
                                 border: node.is_shared ? '#FFA500' : nodeColor.border,
                                 highlight: {
-                                    background: '#FFFFFF',  // Consistent white background on hover
-                                    border: '#007BFF'       // Blue border to make it stand out
+                                    background: '#FFFFFF',
+                                    border: '#007BFF'
                                 },
                                 hover: {
                                     background: '#FFFFFF',
@@ -2171,15 +2173,15 @@
                     elements.resetTraceButton.addEventListener('click', () => {
                         // Restore all nodes to backend color and default appearance
                         nodes.get().forEach(node => {
-                            const nodeColor = node.color || defaultStyles.node;
+                            const nodeColor = node.originalColor || defaultStyles.node;
                             nodes.update({
                                 id: node.id,
                                 color: {
                                     background: nodeColor.background,
                                     border: node.is_shared ? '#FFA500' : nodeColor.border,
                                     highlight: {
-                                        background: '#FFFFFF',  // Consistent white background on hover
-                                        border: '#007BFF'       // Blue border to make it stand out
+                                        background: '#FFFFFF',
+                                        border: '#007BFF'
                                     },
                                     hover: {
                                         background: '#FFFFFF',
@@ -2187,7 +2189,7 @@
                                     }
                                 },
                                 size: node.is_shared ? 45 : 30,
-                                borderWidth: node.is_shared ? 3 : 1,
+                                borderWidth: node.originalBorderWidth || 1,
                                 font: { bold: false, size: 25 }
                             });
                         });
@@ -2313,7 +2315,7 @@
                                 }
                             },
                             size: isFocusNode ? 50 : (isOverlapping ? 45 : 30),
-                            borderWidth: isFocusNode ? 4 : (isOverlapping ? 3 : 1),
+                            borderWidth: isFocusNode ? 4 : (node.borderWidth || (isOverlapping ? 3 : 1)), // Preserve backend borderWidth
                             font: {
                                 color: '#000000',
                                 size: isFocusNode ? 30 : (isOverlapping ? 30 : 25),

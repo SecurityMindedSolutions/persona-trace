@@ -576,12 +576,15 @@ def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only
                 # Check if this is an initial search node (is in the initial_nodes list)
                 is_initial_search_node = any(str(init_node.get('elementId', init_node)) == v_id for init_node in initial_nodes)
 
-                # Apply bolded color for initial search nodes
+                # Apply bolded color and larger border width for initial search nodes
                 if is_initial_search_node:
                     color = {
                         'background': '#FFD700',  # Gold background
                         'border': '#FF4500'       # OrangeRed border
                     }
+                    border_width = 4  # Larger border width for initial search nodes
+                else:
+                    border_width = 1  # Default border width
 
                 # For identifier vertices, count the number of observations
                 # Only count for node types that are not source or observation_of_identity
@@ -610,7 +613,8 @@ def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only
                     'color': color,
                     'num_observations': num_observations,
                     'is_shared': num_observations > 1,
-                    'properties': {**v, 'num_observations': num_observations}
+                    'properties': {**v, 'num_observations': num_observations},
+                    'borderWidth': border_width
                 }
                 nodes.append(node)
 
@@ -1013,12 +1017,14 @@ def make_fake_graph_data(search_type=None, search_value=None, search_operator=No
                 'background': '#FFD700',  # Gold background
                 'border': '#FF4500'       # OrangeRed border
             }
+            node['borderWidth'] = 4  # Larger border width for initial search nodes
         else:
             # Use normal color from fake_node_colors
             node['color'] = fake_node_colors.get(node['group'], {
                 'background': '#D3D3D3',
                 'border': '#808080'
             })
+            node['borderWidth'] = 1  # Default border width
     
     logger.info(f"Final result: {len(final_nodes)} nodes, {len(final_relationships)} relationships")
     logger.info(f"Final nodes: {[v['id'] for v in final_nodes]}")
