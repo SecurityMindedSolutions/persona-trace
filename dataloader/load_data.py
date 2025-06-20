@@ -76,10 +76,9 @@ def process_batch(driver, batch):
 
                 # ────────────────────────── build observation properties ──────────────────────────
                 obs_props = {
-                    'id':  observation['id'],
+                    'value': observation['id'],
                     'source': observation['source'],
                     'observation_date': observation['observation_date'],
-                    'value': observation['id']
                 }
                 for k, v in observation.items():
                     if isinstance(v, (str, int, float, bool)):
@@ -142,7 +141,6 @@ def process_batch(driver, batch):
                 nodes_by_label[n['labels'][0]].append(n['properties'])
 
             for label, nodes in nodes_by_label.items():
-                logger.debug(f"Creating {len(nodes)} nodes for label {label}")
                 query = f"""
                     UNWIND $rows AS props
                     MERGE (n:`{label}` {{ value: props.value }})
@@ -180,27 +178,24 @@ def process_batch(driver, batch):
 
             # ── fast has_observation edges (with index hints) ──
             if has_obs:
-                logger.debug(f"Creating {len(has_obs)} has_observation relationships")
                 session.run("""
                     UNWIND $rels AS rel
                     MATCH (start:source {value: rel.start_val})
-                    MATCH (end:observation_of_identity {id: rel.end_id})
+                    MATCH (end:observation_of_identity {value: rel.end_id})
                     CREATE (start)-[:has_observation]->(end)
                     RETURN count(*)
                 """, rels=has_obs)
-                logger.debug(f"Created {len(has_obs)} has_observation relationships")
 
-            # ─── group remaining rels and insert in parallel ───
+            # ─── group remaining rels and insert in series ───
             grouped = defaultdict(list)
             for r in other_rels:
                 grouped[(r['type'], r['end_label'], r['end_key'])].append(r)
 
             def create_rel_block(rel_type, end_label, end_key, rels):
                 try:
-                    logger.debug(f"Creating {len(rels)} {rel_type} → {end_label}.{end_key}")
                     cypher = f"""
                         UNWIND $rels AS rel
-                        MATCH (start:observation_of_identity {{id: rel.start_id}})
+                        MATCH (start:observation_of_identity {{value: rel.start_id}})
                         MATCH (end:{end_label} {{{end_key}: rel.end_val}})
                         CREATE (start)-[r:{rel_type}]->(end)
                         SET r += rel.properties
@@ -208,15 +203,12 @@ def process_batch(driver, batch):
                     """
                     with driver.session() as s:
                         s.run(cypher, rels=rels)
-                    logger.debug(f"Created {len(rels)} {rel_type} → {end_label}.{end_key}")
                 except Exception as e:
                     logger.error(f"Error creating {rel_type} rels: {e}")
 
-            with ThreadPoolExecutor(max_workers=4) as pool:
-                futures = [pool.submit(create_rel_block, rt, lbl, key, rels)
-                           for (rt, lbl, key), rels in grouped.items()]
-                for f in futures:
-                    f.result()   # raise exceptions, if any
+            # Process each label group in series
+            for (rel_type, end_label, end_key), rels in grouped.items():
+                create_rel_block(rel_type, end_label, end_key, rels)
 
         return len(batch), time.time() - start_time
 
@@ -282,22 +274,53 @@ def main():
         if args.clear_graph:
             confirmation = input("Are you sure you want to clear all graph data? This cannot be undone. (y/N): ")
             if confirmation.lower() == 'y':
-                with console.status("[bold green]Clearing existing graph data...", spinner="dots") as status:
-                    with driver.session() as session:
-                        # Drop all constraints
+                with driver.session() as session:
+                    # Drop all constraints
+                    with console.status("[bold red]Dropping constraints...", spinner="dots") as status:
                         result = session.run("SHOW CONSTRAINTS")
-                        for record in result:
+                        constraints = list(result)
+                        for record in constraints:
                             name = record["name"]
+                            logger.debug(f"Dropping constraint: {name}")
                             session.run(f"DROP CONSTRAINT {name}")
+                        logger.info(f"Dropped {len(constraints)} constraints")
 
-                        # Drop all indexes
+                    # Drop all indexes
+                    with console.status("[bold red]Dropping indexes...", spinner="dots") as status:
                         result = session.run("SHOW INDEXES")
-                        for record in result:
+                        indexes = list(result)
+                        for record in indexes:
                             name = record["name"]
+                            logger.debug(f"Dropping index: {name}")
                             session.run(f"DROP INDEX {name}")
+                        logger.info(f"Dropped {len(indexes)} indexes")
 
-                        # Delete all nodes and relationships
-                        session.run("MATCH (n) DETACH DELETE n")
+                    # Delete all nodes and relationships in batches to avoid memory issues
+                    with console.status("[bold red]Deleting all nodes and relationships...", spinner="dots") as status:
+                        logger.debug("Deleting all nodes and relationships in batches")
+                        total_deleted = 0
+                        batch_size = 10000  # Delete in batches of 10k nodes
+                        batch_number = 0
+                        
+                        while True:
+                            batch_number += 1
+                            # Delete a batch of nodes
+                            result = session.run("""
+                                MATCH (n) 
+                                WITH n LIMIT $batch_size 
+                                DETACH DELETE n 
+                                RETURN count(n) as deleted
+                            """, batch_size=batch_size)
+                            
+                            deleted_count = result.single()['deleted']
+                            total_deleted += deleted_count
+                            
+                            if deleted_count == 0:
+                                break  # No more nodes to delete
+                            
+                            logger.debug(f"Batch {batch_number}: Deleted {deleted_count} nodes (total: {total_deleted})")
+                        
+                        logger.info(f"Deleted {total_deleted} nodes and all relationships in {batch_number-1} batches")
 
                 logger.info("Graph cleared successfully - all data, constraints, and indexes removed.")
             else:
@@ -347,7 +370,8 @@ def main():
                             batch_counter += 1
                             start_obs = (batch_counter - 1) * BATCH_SIZE + 1
                             end_obs = min(batch_counter * BATCH_SIZE, num_lines)
-                            logger.info(f"Processing batch {batch_counter}/{total_batches} (observations {start_obs}-{end_obs} of {num_lines})...")
+                            
+                            # Process the batch
                             num_nodes, processing_time = process_batch(driver, current_batch)
                             total_processed += num_nodes
                             
@@ -385,7 +409,8 @@ def main():
                     batch_counter += 1
                     start_obs = (batch_counter - 1) * BATCH_SIZE + 1
                     end_obs = num_lines
-                    logger.info(f"Processing final batch {batch_counter}/{total_batches} (observations {start_obs}-{end_obs} of {num_lines})...")
+                    
+                    # Process the final batch
                     num_nodes, processing_time = process_batch(driver, current_batch)
                     total_processed += num_nodes
                     

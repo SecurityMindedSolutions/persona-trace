@@ -5,6 +5,8 @@ import random
 import logging
 from lib.constants import NODE_COLORS, RELATIONSHIP_COLORS_OPTIONS, logger, FIND_PATHS_MAX_DEPTH
 from lib.neo4j_connection import get_neo4j_connection
+from modules.neo4j_get_initial_nodes import get_initial_nodes
+from modules.fake_data import make_fake_graph_data
 import json
 
 # Blueprint for the graph page
@@ -26,6 +28,9 @@ def index():
 def api_graph_data():
     logger.info("API request received for graph data...")
     try:
+        #########################################################################################
+        # Get search parameters from the request
+        #########################################################################################
         # Get search parameters from the request
         search_type = request.args.get('searchType')
         # Node value search
@@ -33,35 +38,36 @@ def api_graph_data():
         node_type = request.args.get('nodeType')
         search_operator = request.args.get('searchOperator', 'equals')
         search_value = request.args.get('searchValue')
-        num_hops_node_search = request.args.get('numHopsNodeSearch', '2')
+        num_hops_node_search = request.args.get('numHopsNodeSearch', '1')
         show_nodes_only_search = request.args.get('showNodesOnlySearch', 'false').lower() == 'true'
         search_source_select = request.args.get('searchSourceSelect', '')
         case_sensitive_search = request.args.get('caseSensitiveSearch', 'false').lower() == 'true'
         # Show all overlaps
-        num_connections_show_all_overlaps = request.args.get('numConnectionsShowAllOverlaps', '2')
-        num_hops_show_all_overlaps = request.args.get('numHopsShowAllOverlaps', '2')
+        num_connections_show_all_overlaps = request.args.get('numConnectionsShowAllOverlaps', '1')
+        num_hops_show_all_overlaps = request.args.get('numHopsShowAllOverlaps', '1')
         # Fake data parameter
         fake_data = request.args.get('fake_data', 'false').lower() == 'true'
         print(f"Fake data: {fake_data}")
+        # Convert num_hops to integer with default value of 2
+        try:
+            num_hops_node_search = int(num_hops_node_search)
+        except (ValueError, TypeError):
+            num_hops_node_search = 1
+        try:
+            num_connections_show_all_overlaps = int(num_connections_show_all_overlaps)
+        except (ValueError, TypeError):
+            num_connections_show_all_overlaps = 1
+        try:
+            num_hops_show_all_overlaps = int(num_hops_show_all_overlaps)
+        except (ValueError, TypeError):
+            num_hops_show_all_overlaps = 1
 
+
+        #########################################################################################
         # If fake_data is true, return fake data
+        #########################################################################################
         if fake_data:
             logger.info("Returning fake data...")
-            
-            # Convert num_hops to integer with default value of 2
-            try:
-                num_hops_node_search = int(num_hops_node_search) if num_hops_node_search else 2
-            except (ValueError, TypeError):
-                num_hops_node_search = 2
-            try:
-                num_connections_show_all_overlaps = int(num_connections_show_all_overlaps) if num_connections_show_all_overlaps else 2
-            except (ValueError, TypeError):
-                num_connections_show_all_overlaps = 2
-            try:
-                num_hops_show_all_overlaps = int(num_hops_show_all_overlaps) if num_hops_show_all_overlaps else 2
-            except (ValueError, TypeError):
-                num_hops_show_all_overlaps = 2
-            
             # Get fake data with proper search filtering and hop limiting
             fake_data = make_fake_graph_data(
                 search_type=search_type,
@@ -70,13 +76,12 @@ def api_graph_data():
                 node_type=node_type,
                 num_hops=num_hops_node_search if search_type == 'nodeValue' else num_hops_show_all_overlaps,
                 num_connections_show_all_overlaps=num_connections_show_all_overlaps,
-                show_nodes_only_search=show_nodes_only_search,
-                initial_nodes=[]  # For fake data, we'll determine initial nodes within the function
+                show_nodes_only_search=show_nodes_only_search
             )
             
             # Return fake data
             return jsonify({
-                'relationships': fake_data['relationships'],
+                'nodes': fake_data['nodes'],
                 'relationships': fake_data['relationships'],
                 'metadata': {
                     'nodeCount': len(fake_data['relationships']),
@@ -85,20 +90,10 @@ def api_graph_data():
                 }
             })
 
-        # Convert num_hops to integer with default value of 2
-        try:
-            num_hops_node_search = int(num_hops_node_search) if num_hops_node_search else 2
-        except (ValueError, TypeError):
-            num_hops_node_search = 2
-        try:
-            num_connections_show_all_overlaps = int(num_connections_show_all_overlaps) if num_connections_show_all_overlaps else 2
-        except (ValueError, TypeError):
-            num_connections_show_all_overlaps = 2
-        try:
-            num_hops_show_all_overlaps = int(num_hops_show_all_overlaps) if num_hops_show_all_overlaps else 2
-        except (ValueError, TypeError):
-            num_hops_show_all_overlaps = 2
 
+        #########################################################################################
+        # Real Data
+        #########################################################################################
         # Establish Neo4j connection
         driver = get_neo4j_connection()
 
@@ -107,7 +102,6 @@ def api_graph_data():
         initial_nodes = get_initial_nodes(
             driver=driver,
             search_type=search_type,
-            show_overlaps=show_overlaps,
             search_value=search_value,
             search_operator=search_operator,
             node_type=node_type,
@@ -123,17 +117,14 @@ def api_graph_data():
                 'type': 'No initial nodes found'
             }), 200
 
-        # Fetch graph data given the initial nodes
+
+        # Fetch the rest of the graph data given the initial nodes, e.g. connected nodes and relationships
         logger.info(f"Fetching graph data given the initial nodes")
         data = get_graph_data(
             driver=driver,
-            search_type=search_type,
             initial_nodes=initial_nodes,
             num_hops=num_hops_node_search if search_type == 'nodeValue' else num_hops_show_all_overlaps,
-            show_nodes_only_search=show_nodes_only_search,
-            search_value=search_value,
-            search_operator=search_operator,
-            node_type=node_type
+            show_nodes_only_search=show_nodes_only_search
         )
 
         logger.info(f"Final node count: {len(data['nodes'])}")
@@ -206,6 +197,7 @@ def api_node_types():
             'traceback': "",
             'type': type(e).__name__
         }), 500
+
 
 @graph_bp.route('/api/source-types')
 def api_source_types():
@@ -281,195 +273,7 @@ def get_relationship_color(relationship_type):
     
     return RELATIONSHIP_COLOR_ASSIGNMENTS[relationship_type]
 
-def get_initial_nodes(driver, search_type, show_overlaps, search_value, search_operator, node_type, num_connections_show_all_overlaps, case_sensitive_search):
-    try:       
-        with driver.session() as session:
-            #########################################################################################
-            # Search of a specific node
-            #########################################################################################
-            if search_type == 'nodeValue':
-                # First, let's find out what labels actually exist
-                label_query = """
-                CALL db.labels() YIELD label
-                RETURN label
-                """
-                label_result = session.run(label_query)
-                available_labels = [record["label"] for record in label_result]
-                logger.info(f"Available labels: {available_labels}")
-                
-                # Build Cypher query based on search parameters
-                if node_type:
-                    # Check if the requested node type exists
-                    if node_type not in available_labels:
-                        logger.warning(f"Requested node type '{node_type}' not found in database. Available types: {available_labels}")
-                        return []
-                    
-                    # Filter by specific type
-                    if search_operator == 'equals':
-                        if case_sensitive_search:
-                            query = f"MATCH (v:{node_type}) WHERE v.value = $search_value RETURN v"
-                        else:
-                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) = toLower($search_value) RETURN v"
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'contains':
-                        if case_sensitive_search:
-                            query = f"MATCH (v:{node_type}) WHERE v.value CONTAINS $search_value RETURN v"
-                        else:
-                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) CONTAINS toLower($search_value) RETURN v"
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'starts_with':
-                        if case_sensitive_search:
-                            query = f"MATCH (v:{node_type}) WHERE v.value STARTS WITH $search_value RETURN v"
-                        else:
-                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) STARTS WITH toLower($search_value) RETURN v"
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'ends_with':
-                        if case_sensitive_search:
-                            query = f"MATCH (v:{node_type}) WHERE v.value ENDS WITH $search_value RETURN v" 
-                        else:
-                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) ENDS WITH toLower($search_value) RETURN v"
-                        result = session.run(query, search_value=search_value)
-                    else:
-                        raise ValueError(f"Invalid search operator: {search_operator}")
-                else:
-                    # Search across all node types
-                    if search_operator == 'equals':
-                        if case_sensitive_search:
-                            query = """
-                            MATCH (v)
-                            WHERE v.value = $search_value
-                            RETURN v
-                            """
-                        else:
-                            query = """
-                            MATCH (v)
-                            WHERE toLower(v.value) = toLower($search_value)
-                            RETURN v
-                            """
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'contains':
-                        if case_sensitive_search:
-                            query = """
-                            MATCH (v)
-                            WHERE v.value CONTAINS $search_value
-                            RETURN v
-                            """
-                        else:
-                            query = """
-                            MATCH (v)
-                            WHERE toLower(v.value) CONTAINS toLower($search_value)
-                            RETURN v
-                            """
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'starts_with':
-                        if case_sensitive_search:
-                            query = """
-                            MATCH (v)
-                            WHERE v.value STARTS WITH $search_value
-                            RETURN v
-                            """
-                        else:
-                            query = """
-                            MATCH (v)
-                            WHERE toLower(v.value) STARTS WITH toLower($search_value)
-                            RETURN v
-                            """
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'ends_with':
-                        if case_sensitive_search:
-                            query = """
-                            MATCH (v)
-                            WHERE v.value ENDS WITH $search_value
-                            RETURN v
-                            """
-                        else:
-                            query = """
-                            MATCH (v)
-                            WHERE toLower(v.value) ENDS WITH toLower($search_value)
-                            RETURN v
-                            """
-                        result = session.run(query, search_value=search_value)
-                    else:
-                        raise ValueError(f"Invalid search operator: {search_operator}")
-                
-                # Convert Neo4j nodes to list of dictionaries
-                nodes = []
-                for record in result:
-                    node = record["v"]
-                    # Convert Neo4j node to dictionary format
-                    node_dict = dict(node)
-                    node_dict['id'] = node.id
-                    node_dict['elementId'] = node.element_id
-                    node_dict['labels'] = list(node.labels)
-                    nodes.append(node_dict)
-                
-                return nodes
-                
-            #########################################################################################
-            # Show all overlaps
-            #########################################################################################
-            elif search_type == 'showAllOverlaps':
-                logger.info("Finding identifiers with multiple observations...")
-                
-                # First, let's find out what relationship types actually exist
-                relationship_query = """
-                CALL db.relationshipTypes() YIELD relationshipType
-                RETURN relationshipType
-                """
-                rel_result = session.run(relationship_query)
-                relationship_types = [record["relationshipType"] for record in rel_result]
-                logger.info(f"Available relationship types: {relationship_types}")
-                
-                # Also check what labels exist
-                label_query = """
-                CALL db.labels() YIELD label
-                RETURN label
-                """
-                label_result = session.run(label_query)
-                available_labels = [record["label"] for record in label_result]
-                logger.info(f"Available labels: {available_labels}")
-                
-                # Filter identity labels to only include those that exist in the database
-                identity_labels = [label for label in available_labels if label not in ['source', 'observation_of_identity']]
-                if not identity_labels:
-                    logger.warning(f"No identity labels found in database. Available: {available_labels}")
-                    return []
-                
-                # Build Cypher query to find shared identifiers
-                # Use a more generic approach that doesn't assume specific relationship names
-                query = """
-                MATCH (identifier)
-                WHERE ANY(label IN labels(identifier) WHERE label IN $identity_labels)
-                WITH identifier
-                MATCH (obs:observation_of_identity)-[r]->(identifier)
-                WITH identifier, count(DISTINCT obs) as observation_count
-                WHERE observation_count >= $min_connections
-                RETURN identifier, observation_count
-                ORDER BY observation_count DESC
-                """
-                
-                result = session.run(query, 
-                                   identity_labels=identity_labels,
-                                   min_connections=num_connections_show_all_overlaps)
-                
-                relationships = []
-                for record in result:
-                    node = record["identifier"]
-                    node_dict = dict(node)
-                    node_dict['id'] = node.id
-                    node_dict['elementId'] = node.element_id
-                    node_dict['labels'] = list(node.labels)
-                    node_dict['observation_count'] = record["observation_count"]
-                    relationships.append(node_dict)
-                
-                logger.info(f"Found {len(relationships)} total shared identifiers")
-                return relationships
-            else:
-                # Return empty graph if no search or show_overlaps is specified
-                return []
-    except Exception as e:
-        logger.error(f"Error getting initial nodes: {str(e)}")
-        raise Exception(f"Initial node query failed: {str(e)}")
+
 
 
 def flatten_properties(props, prefix=''):
@@ -489,7 +293,7 @@ def flatten_properties(props, prefix=''):
     return flat
 
 
-def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only_search=False, search_value=None, search_operator=None, node_type=None):
+def get_graph_data(driver, initial_nodes, num_hops, show_nodes_only_search):
     try:
         nodes = []
         seen_ids = set()
@@ -696,348 +500,6 @@ def get_graph_data(driver, search_type, initial_nodes, num_hops, show_nodes_only
         raise Exception(f"Node query failed: {str(e)}")
     
 
-def make_fake_graph_data(search_type=None, search_value=None, search_operator=None, node_type=None, num_hops=2, num_connections_show_all_overlaps=2, show_nodes_only_search=False, initial_nodes=[]):
-    # Create fake node and relationship color assignments for consistency
-    fake_node_colors = {
-        'source': NODE_COLORS['source'],
-        'observation_of_identity': NODE_COLORS['observation_of_identity'],
-        'email_address': NODE_COLORS['node_color_options'][0],
-        'ip_address': NODE_COLORS['node_color_options'][1], 
-        'phone_number': NODE_COLORS['node_color_options'][2],
-        'address': NODE_COLORS['node_color_options'][3],
-        'name': NODE_COLORS['node_color_options'][4]
-    }
-    
-    fake_relationship_colors = {
-        'has_observation': RELATIONSHIP_COLORS_OPTIONS[5],
-        'has_email': RELATIONSHIP_COLORS_OPTIONS[0],
-        'has_ip': RELATIONSHIP_COLORS_OPTIONS[1],
-        'has_phone': RELATIONSHIP_COLORS_OPTIONS[2], 
-        'has_address': RELATIONSHIP_COLORS_OPTIONS[3],
-        'has_name': RELATIONSHIP_COLORS_OPTIONS[4]
-    }
-    
-    # Define the complete fake dataset
-    all_nodes = [
-        # Source nodes (observations)
-        {
-            'id': 'obs1',
-            'label': 'Social Media Post 1',
-            'group': 'source',
-            'properties': {
-                'source': 'social_media_platform',
-                'observation_date': '2024-03-15'
-            },
-            'num_observations': 1
-        },
-        {
-            'id': 'obs2',
-            'label': 'Data Breach 1',
-            'group': 'source',
-            'properties': {
-                'source': 'data_breach',
-                'observation_date': '2024-03-10'
-            },
-            'num_observations': 1
-        },
-        {
-            'id': 'obs3',
-            'label': 'Forum Post 1',
-            'group': 'source',
-            'properties': {
-                'source': 'forum_data',
-                'observation_date': '2024-03-12'
-            },
-            'num_observations': 1
-        },
-        # Observation nodes
-        {
-            'id': 'obs_id1',
-            'label': 'John Smith (obs1)',
-            'group': 'observation_of_identity',
-            'properties': {
-                'names': ['John Smith'],
-                'date_of_birth': '1985-03-22',
-                'age': 39,
-                'city': 'Portland',
-                'state': 'OR'
-            },
-            'num_observations': 1
-        },
-        {
-            'id': 'obs_id2',
-            'label': 'John Smith (obs2)',
-            'group': 'observation_of_identity',
-            'properties': {
-                'names': ['John Smith'],
-                'date_of_birth': '1985-03-22',
-                'age': 39,
-                'city': 'Seattle',
-                'state': 'WA'
-            },
-            'num_observations': 1
-        },
-        {
-            'id': 'obs_id3',
-            'label': 'Sarah Jones (obs3)',
-            'group': 'observation_of_identity',
-            'properties': {
-                'names': ['Sarah Jones'],
-                'date_of_birth': '1988-06-15',
-                'age': 36,
-                'city': 'Portland',
-                'state': 'OR'
-            },
-            'num_observations': 1
-        },
-        # Identity nodes (with some overlaps)
-        {
-            'id': 'email1',
-            'label': 'john.smith@email.com',
-            'group': 'email_address',
-            'properties': {'category': 'personal'},
-            'num_observations': 2  # Used in both obs1 and obs2
-        },
-        {
-            'id': 'email2',
-            'label': 'sarah.jones@email.com',
-            'group': 'email_address',
-            'properties': {'category': 'personal'},
-            'num_observations': 1
-        },
-        {
-            'id': 'ip1',
-            'label': '192.168.1.100',
-            'group': 'ip_address',
-            'properties': {'category': 'home'},
-            'num_observations': 2  # Used in both obs1 and obs3
-        },
-        {
-            'id': 'phone1',
-            'label': '+15035551234',
-            'group': 'phone_number',
-            'properties': {'category': 'mobile'},
-            'num_observations': 1
-        },
-        {
-            'id': 'addr1',
-            'label': '123 Main St, Portland, OR',
-            'group': 'address',
-            'properties': {'category': 'home'},
-            'num_observations': 2  # Used in both obs1 and obs3
-        },
-        {
-            'id': 'name1',
-            'label': 'John Smith',
-            'group': 'name',
-            'properties': {},
-            'num_observations': 2  # Used in both obs1 and obs2
-        },
-        {
-            'id': 'name2',
-            'label': 'Sarah Jones',
-            'group': 'name',
-            'properties': {},
-            'num_observations': 1
-        }
-    ]
-    
-    all_relationships = [
-        # Source to observation connections
-        {'id': 'e1', 'from': 'obs1', 'to': 'obs_id1', 'label': 'has_observation'},
-        {'id': 'e2', 'from': 'obs2', 'to': 'obs_id2', 'label': 'has_observation'},
-        {'id': 'e3', 'from': 'obs3', 'to': 'obs_id3', 'label': 'has_observation'},
-        # Observation to identity connections
-        {'id': 'e4', 'from': 'obs_id1', 'to': 'email1', 'label': 'has_email'},
-        {'id': 'e5', 'from': 'obs_id1', 'to': 'ip1', 'label': 'has_ip'},
-        {'id': 'e6', 'from': 'obs_id1', 'to': 'phone1', 'label': 'has_phone'},
-        {'id': 'e7', 'from': 'obs_id1', 'to': 'addr1', 'label': 'has_address'},
-        {'id': 'e8', 'from': 'obs_id1', 'to': 'name1', 'label': 'has_name'},
-        {'id': 'e9', 'from': 'obs_id2', 'to': 'email1', 'label': 'has_email'},
-        {'id': 'e10', 'from': 'obs_id2', 'to': 'name1', 'label': 'has_name'},
-        {'id': 'e11', 'from': 'obs_id3', 'to': 'email2', 'label': 'has_email'},
-        {'id': 'e12', 'from': 'obs_id3', 'to': 'ip1', 'label': 'has_ip'},
-        {'id': 'e13', 'from': 'obs_id3', 'to': 'addr1', 'label': 'has_address'},
-        {'id': 'e14', 'from': 'obs_id3', 'to': 'name2', 'label': 'has_name'}
-    ]
-    
-    # If no search parameters, return all data
-    if not search_type:
-        return {
-            'relationships': all_nodes,
-            'relationships': all_relationships,
-            'metadata': {
-                'nodeCount': len(all_nodes),
-                'relationshipCount': len(all_relationships),
-                'nodeColors': fake_node_colors,
-                'relationshipColors': fake_relationship_colors
-            }
-        }
-    
-    # Filter nodes based on search parameters
-    filtered_nodes = []
-    if search_type == 'nodeValue':
-        # Find nodes that match the search criteria
-        for node in all_nodes:
-            if node['group'] == node_type or not node_type:
-                node_value = node.get('label', '')
-                if search_operator == 'equals' and node_value.lower() == search_value.lower():
-                    filtered_nodes.append(node)
-                elif search_operator == 'contains' and search_value.lower() in node_value.lower():
-                    filtered_nodes.append(node)
-    
-    elif search_type == 'showAllOverlaps':
-        # Find nodes with multiple observations
-        for node in all_nodes:
-            if node['num_observations'] >= num_connections_show_all_overlaps:
-                filtered_nodes.append(node)
-    
-    # Debug logging
-    logger.info(f"Search parameters: type={search_type}, value={search_value}, operator={search_operator}, node_type={node_type}")
-    logger.info(f"Filtered nodes found: {len(filtered_nodes)}")
-    for v in filtered_nodes:
-        logger.info(f"  - {v['id']} ({v['group']}): {v['label']}")
-    
-    # If no matching nodes found, return empty result
-    if not filtered_nodes:
-        return {
-            'relationships': [],
-            'relationships': [],
-            'metadata': {
-                'nodeCount': 0,
-                'relationshipCount': 0,
-                'nodeColors': fake_node_colors,
-                'relationshipColors': fake_relationship_colors
-            }
-        }
-    
-    # Get nodes within num_hops of the filtered nodes
-    included_nodes = set()
-    included_relationships = []
-    
-    # Add the filtered nodes
-    for node in filtered_nodes:
-        included_nodes.add(node['id'])
-    
-    logger.info(f"Starting with {len(included_nodes)} filtered nodes: {included_nodes}")
-    
-    # If show_nodes_only_search is True, only return the filtered nodes
-    if show_nodes_only_search:
-        logger.info("Show nodes only search is enabled - only returning filtered nodes")
-        final_nodes = filtered_nodes
-        final_relationships = []
-    else:
-        # Add nodes within num_hops
-        for hop in range(num_hops):
-            new_nodes = set()
-            for relationship in all_relationships:
-                from_id = relationship['from']
-                to_id = relationship['to']
-                
-                # If one end is included, add the other end and the relationship
-                if from_id in included_nodes and to_id not in included_nodes:
-                    new_nodes.add(to_id)
-                    included_relationships.append(relationship)
-                elif to_id in included_nodes and from_id not in included_nodes:
-                    new_nodes.add(from_id)
-                    included_relationships.append(relationship)
-                elif from_id in included_nodes and to_id in included_nodes:
-                    # Both nodes are included, add relationship if not already added
-                    if relationship not in included_relationships:
-                        included_relationships.append(relationship)
-            
-            included_nodes.update(new_nodes)
-            logger.info(f"After hop {hop + 1}: {len(included_nodes)} nodes, {len(included_relationships)} relationships")
-        
-        # Special handling: Always include source nodes that are connected to any included observation nodes
-        # This ensures that when we find identity nodes, we also show their source observations
-        source_nodes = set()
-        for node in all_nodes:
-            if node['group'] == 'source':
-                # Check if this source is connected to any included observation nodes
-                for relationship in all_relationships:
-                    if relationship['label'] == 'has_observation':
-                        # In fake data: source -> observation (from: source, to: observation)
-                        if relationship['from'] == node['id'] and relationship['to'] in included_nodes:
-                            source_nodes.add(node['id'])
-                            # Add the relationship connecting source to observation
-                            if relationship not in included_relationships:
-                                included_relationships.append(relationship)
-                                logger.info(f"Added source node {node['id']} connected to observation {relationship['to']}")
-                        # Also check reverse direction in case relationship direction is different
-                        elif relationship['to'] == node['id'] and relationship['from'] in included_nodes:
-                            source_nodes.add(node['id'])
-                            # Add the relationship connecting observation to source
-                            if relationship not in included_relationships:
-                                included_relationships.append(relationship)
-                                logger.info(f"Added source node {node['id']} connected from observation {relationship['from']}")
-        
-        logger.info(f"Found {len(source_nodes)} source nodes to include: {source_nodes}")
-        
-        # Add source nodes to included set
-        included_nodes.update(source_nodes)
-        
-        # Get the final nodes and relationships
-        final_nodes = [v for v in all_nodes if v['id'] in included_nodes]
-        final_relationships = included_relationships
-    
-    # Recalculate num_observations for nodes based on actual connections in the final result
-    # Only do this when not in show_nodes_only_search mode
-    if not show_nodes_only_search:
-        for node in final_nodes:
-            if node['group'] not in ['source', 'observation_of_identity']:
-                # Count how many observation nodes are connected to this node in the final result
-                observation_count = 0
-                for relationship in final_relationships:
-                    if relationship['label'].startswith('has_') and relationship['to'] == node['id']:
-                        # Check if the 'from' node is an observation
-                        from_node = next((v for v in final_nodes if v['id'] == relationship['from']), None)
-                        if from_node and from_node['group'] == 'observation_of_identity':
-                            observation_count += 1
-                
-                # Update the node with the correct observation count
-                node['num_observations'] = observation_count
-                node['is_shared'] = observation_count > 1
-                
-                # Update the label to include observation count if multiple observations
-                if observation_count > 1:
-                    # Remove any existing observation count from the label
-                    import re
-                    base_label = re.sub(r'(\n| )?\(\d+ obs\)', '', node['label'])
-                    node['label'] = f"{base_label}\n({observation_count} obs)"
-    
-    # Apply bolded colors to initial search nodes
-    for node in final_nodes:
-        # Check if this is an initial search node (is in the filtered_nodes list)
-        is_initial_search_node = any(filtered_node['id'] == node['id'] for filtered_node in filtered_nodes)
-
-        # Apply bolded color for initial search nodes
-        if is_initial_search_node:
-            node['color'] = {
-                'background': '#FFD700',  # Gold background
-                'border': '#FF4500'       # OrangeRed border
-            }
-            node['borderWidth'] = 4  # Larger border width for initial search nodes
-        else:
-            # Use normal color from fake_node_colors
-            node['color'] = fake_node_colors.get(node['group'], {
-                'background': '#D3D3D3',
-                'border': '#808080'
-            })
-            node['borderWidth'] = 1  # Default border width
-    
-    logger.info(f"Final result: {len(final_nodes)} nodes, {len(final_relationships)} relationships")
-    logger.info(f"Final nodes: {[v['id'] for v in final_nodes]}")
-    
-    return {
-        'nodes': final_nodes,
-        'relationships': final_relationships,
-        'metadata': {
-            'nodeCount': len(final_nodes),
-            'relationshipCount': len(final_relationships),
-            'relationshipColors': fake_relationship_colors
-        }
-    }
 
 @graph_bp.route('/api/find-paths')
 def api_find_paths():
