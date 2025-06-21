@@ -5,7 +5,10 @@
     "observation_date": "string (YYYY-MM-DD)",
 
     "nodes": {
-        "names": "array<string>",
+        "names": "array<object>{
+            value: string,
+            type: string
+        }",
     
         "online_identifiers": "array<object>{
             type: string,

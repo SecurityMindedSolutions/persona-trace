@@ -23,7 +23,9 @@ Each observation must contain:
 #### Optional Fields
 
 ##### Nodes - without nodes there's not really a point to an observation :-)
-- `nodes.names` (array<string>): List of associated names
+- `nodes.names` (array<object>): Names with:
+  - `type` (string): Identifier type (e.g., "full_name")
+  - `value` (string): The name value
 - `nodes.online_identifiers` (array<object>): Online identifiers with:
   - `type` (string): Identifier type (e.g., "email_address", "ip_address")
   - `value` (string): The identifier value

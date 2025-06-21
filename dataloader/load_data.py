@@ -112,16 +112,12 @@ def process_batch(driver, batch):
                     if node_type == 'source':
                         continue
                     for node in observation.get('nodes', {}).get(node_type, []):
-                        if node_type == 'names':                       # simple list
-                            value, label, rel_type = node, cfg['node_type'], cfg['relationship_type']
-                            node_props = {'value': value}
-                        else:                                         # dict-style nodes
-                            value = node.get(cfg['value_field'])
-                            node_props = {k: node.get(k) for k in cfg['properties'] if k in node}
-                            if cfg['node_type'] == 'dynamic':
-                                label, rel_type = node.get('type'), f"has_{node.get('type')}"
-                            else:
-                                label, rel_type = cfg['node_type'], cfg['relationship_type']
+                        value = node.get(cfg['value_field'])
+                        node_props = {k: node.get(k) for k in cfg['properties'] if k in node}
+                        if cfg['node_type'] == 'dynamic':
+                            label, rel_type = node.get('type'), f"has_{node.get('type')}"
+                        else:
+                            label, rel_type = cfg['node_type'], cfg['relationship_type']
 
                         # Only create the node if it doesn't already exist
                         if value not in created_node_values_dict[label]:
@@ -322,6 +318,10 @@ def main():
                             start_obs = (batch_counter - 1) * BATCH_SIZE + 1
                             end_obs = min(batch_counter * BATCH_SIZE, num_lines)
                             
+                            # If first batch, print that you are starting
+                            if batch_counter == 1:
+                                logger.info(f"Starting to process batch {batch_counter} of {total_batches}...")
+
                             # Process the batch
                             num_nodes, processing_time = process_batch(driver, current_batch)
                             total_processed += num_nodes

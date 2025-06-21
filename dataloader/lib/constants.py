@@ -82,10 +82,10 @@ NODE_SCHEMAS = {
         'properties': ['value']
     },
     'names': {
-        'node_type': 'name',
-        'value_field': 'value',
-        'relationship_type': 'has_name',
-        'properties': ['value']
+        'node_type': 'dynamic',  # Will use the 'type' field from each object
+        'value_field': 'value', 
+        'relationship_type': 'dynamic',  # Will use 'has_' + type field
+        'properties': ['value', 'type']
     },
     'online_identifiers': {
         'node_type': 'dynamic',  # Will use the 'type' field from each object
