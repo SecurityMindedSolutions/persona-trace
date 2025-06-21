@@ -22,7 +22,7 @@ def print_graph_summary(driver):
             node_types_result = session.run("""
                 MATCH (n)
                 RETURN labels(n)[0] as label, count(n) as count
-                ORDER BY count DESC
+                ORDER BY label ASC
             """)
             node_types = {record['label']: record['count'] for record in node_types_result}
             
@@ -30,7 +30,7 @@ def print_graph_summary(driver):
             relationship_types_result = session.run("""
                 MATCH ()-[r]->()
                 RETURN type(r) as type, count(r) as count
-                ORDER BY count DESC
+                ORDER BY type ASC
             """)
             relationship_types = {record['type']: record['count'] for record in relationship_types_result}
             

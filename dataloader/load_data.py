@@ -34,11 +34,12 @@ from lib.constants import (
     NODE_SCHEMAS,
     # Batch configuration
     BATCH_SIZE,
+    DELETION_BATCH_SIZE,
 )
 from lib.graph_print import print_graph_summary
 from lib.json_operations import deep_flatten
 from lib.file_operations import get_all_files
-
+from lib.graph_delete import delete_graph
 
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
@@ -135,20 +136,6 @@ def process_batch(driver, batch):
                             'type':       rel_type
                         })
 
-            # ──────────────────────────── bulk node merge ─────────────────────────────
-            nodes_by_label = defaultdict(list)
-            for n in all_nodes:
-                nodes_by_label[n['labels'][0]].append(n['properties'])
-
-            for label, nodes in nodes_by_label.items():
-                query = f"""
-                    UNWIND $rows AS props
-                    MERGE (n:`{label}` {{ value: props.value }})
-                    SET n += props
-                    RETURN count(n)
-                """
-                session.run(query, rows=nodes)
-
             # ───────────────────── split relationships by type ────────────────────────
             has_obs, other_rels = [], []
             for r in all_relationships:
@@ -175,6 +162,20 @@ def process_batch(driver, batch):
                     if end_label not in created_end_label_indices:
                         create_indexes(driver, [end_label])
                         created_end_label_indices.add(end_label)
+
+            # ──────────────────────────── bulk node merge ─────────────────────────────
+            nodes_by_label = defaultdict(list)
+            for n in all_nodes:
+                nodes_by_label[n['labels'][0]].append(n['properties'])
+
+            for label, nodes in nodes_by_label.items():
+                query = f"""
+                    UNWIND $rows AS props
+                    MERGE (n:`{label}` {{ value: props.value }})
+                    SET n += props
+                    RETURN count(n)
+                """
+                session.run(query, rows=nodes)
 
             # ── fast has_observation edges (with index hints) ──
             if has_obs:
@@ -274,57 +275,7 @@ def main():
         if args.clear_graph:
             confirmation = input("Are you sure you want to clear all graph data? This cannot be undone. (y/N): ")
             if confirmation.lower() == 'y':
-                with driver.session() as session:
-                    # Drop all constraints
-                    with console.status("[bold red]Dropping constraints...", spinner="dots") as status:
-                        result = session.run("SHOW CONSTRAINTS")
-                        constraints = list(result)
-                        for record in constraints:
-                            name = record["name"]
-                            logger.debug(f"Dropping constraint: {name}")
-                            session.run(f"DROP CONSTRAINT {name}")
-                        logger.info(f"Dropped {len(constraints)} constraints")
-
-                    # Drop all indexes
-                    with console.status("[bold red]Dropping indexes...", spinner="dots") as status:
-                        result = session.run("SHOW INDEXES")
-                        indexes = list(result)
-                        for record in indexes:
-                            name = record["name"]
-                            logger.debug(f"Dropping index: {name}")
-                            session.run(f"DROP INDEX {name}")
-                        logger.info(f"Dropped {len(indexes)} indexes")
-
-                    # Delete all nodes and relationships in batches to avoid memory issues
-                    with console.status("[bold red]Deleting all nodes and relationships...", spinner="dots") as status:
-                        logger.debug("Deleting all nodes and relationships in batches")
-                        total_deleted = 0
-                        batch_size = 10000  # Delete in batches of 10k nodes
-                        batch_number = 0
-                        
-                        while True:
-                            batch_number += 1
-                            # Delete a batch of nodes
-                            result = session.run("""
-                                MATCH (n) 
-                                WITH n LIMIT $batch_size 
-                                DETACH DELETE n 
-                                RETURN count(n) as deleted
-                            """, batch_size=batch_size)
-                            
-                            deleted_count = result.single()['deleted']
-                            total_deleted += deleted_count
-                            
-                            if deleted_count == 0:
-                                break  # No more nodes to delete
-                            
-                            logger.debug(f"Batch {batch_number}: Deleted {deleted_count} nodes (total: {total_deleted})")
-                        
-                        logger.info(f"Deleted {total_deleted} nodes and all relationships in {batch_number-1} batches")
-
-                logger.info("Graph cleared successfully - all data, constraints, and indexes removed.")
-            else:
-                logger.info("Graph clearing cancelled by user.")
+              delete_graph(driver)
         else:
             logger.info("Skipping graph clearing")
     except Exception as e:
@@ -425,6 +376,12 @@ def main():
             # Print summary
             logger.info("Final Graph State:")
             print_graph_summary(driver)
+            
+            # Print total processing time
+            total_processing_time = time.time() - total_start_time
+            minutes = int(total_processing_time // 60)
+            seconds = int(total_processing_time % 60)
+            logger.info(f"Total processing time: {minutes}m {seconds}s")
         except Exception as e:
             logger.error(f"Unexpected error: {str(e)}")
             logger.error(f"Error type: {type(e)}")

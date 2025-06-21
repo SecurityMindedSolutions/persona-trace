@@ -16,7 +16,8 @@ parser.add_argument('--clear_graph', action='store_true', help='Delete graph dat
 parser.add_argument('--neo4j_endpoint', type=str, help='Neo4j endpoint', default='bolt://localhost:7687')
 parser.add_argument('--neo4j_username', type=str, help='Neo4j username', default='neo4j')
 parser.add_argument('--neo4j_password', type=str, help='Neo4j password', default='personatrace')
-parser.add_argument('--batch_size', type=int, help='Batch size of observations to process at a time', default=50)
+parser.add_argument('--batch_size', type=int, help='Batch size of observations to process at a time', default=5000)
+parser.add_argument('--deletion_batch_size', type=int, help='Batch size for deletion operations', default=50000)
 parser.add_argument('--example_data_folder', type=str, help='Full folder path for example data if not in data/example_data')
 parser.add_argument('--live_data_folder', type=str, help='Full folder path for live data if not in data/live_data')
 args = parser.parse_args()
@@ -30,6 +31,7 @@ NEO4J_PASSWORD = args.neo4j_password
 # Batch size
 ########################################################
 BATCH_SIZE = args.batch_size
+DELETION_BATCH_SIZE = args.deletion_batch_size
 ########################################################
 # Folder paths
 ########################################################
