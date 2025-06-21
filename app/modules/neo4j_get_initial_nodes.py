@@ -33,13 +33,13 @@ def _build_search_query(node_type=None, search_operator='equals', case_sensitive
                 query = f"""
                 MATCH (s:source {{value: "{sources[0]}"}})-[:has_observation]->(o:observation_of_identity)-[:has_{node_type}]->(v:{node_type})
                 WHERE {where_clause}
-                RETURN v
+                RETURN v, o, s
                 """
             else:
                 query = f"""
                 MATCH (s:source {{value: "{sources[0]}"}})-[:has_observation]->(o:observation_of_identity)-[r]->(v)
                 WHERE {where_clause}
-                RETURN v
+                RETURN v, o, s
                 """
         else:
             # Multiple sources - use IN clause
@@ -48,13 +48,13 @@ def _build_search_query(node_type=None, search_operator='equals', case_sensitive
                 query = f"""
                 MATCH (s:source)-[:has_observation]->(o:observation_of_identity)-[:has_{node_type}]->(v:{node_type})
                 WHERE s.value IN {source_list} AND {where_clause}
-                RETURN DISTINCT v
+                RETURN DISTINCT v, o, s
                 """
             else:
                 query = f"""
                 MATCH (s:source)-[:has_observation]->(o:observation_of_identity)-[r]->(v)
                 WHERE s.value IN {source_list} AND {where_clause}
-                RETURN DISTINCT v
+                RETURN DISTINCT v, o, s
                 """
     else:
         # No source filtering - search all sources
@@ -105,7 +105,26 @@ def get_initial_nodes(driver, search_type, search_value, search_operator, node_t
                 result = session.run(query, search_value=search_value)
                 
                 # Convert Neo4j nodes to list of dictionaries
-                nodes = [_convert_neo4j_node_to_dict(record["v"]) for record in result]
+                nodes = []
+                for record in result:
+                    node = record["v"]
+                    node_dict = _convert_neo4j_node_to_dict(node)
+                    
+                    # If source filtering was used, we also have observation and source data
+                    if search_source_select and search_source_select.strip():
+                        if "o" in record and "s" in record:
+                            obs = record["o"]
+                            source = record["s"]
+                            # Add source information to the node for display purposes
+                            node_dict['source'] = source.get('value', 'Unknown')
+                            node_dict['observation'] = obs.get('value', 'Unknown')
+                            
+                            # Also add the observation and source nodes to the results
+                            obs_dict = _convert_neo4j_node_to_dict(obs)
+                            source_dict = _convert_neo4j_node_to_dict(source)
+                            nodes.extend([obs_dict, source_dict])
+                    
+                    nodes.append(node_dict)
                 return nodes
                 
             #########################################################################################
