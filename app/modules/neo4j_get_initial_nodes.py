@@ -79,8 +79,10 @@ def _convert_neo4j_node_to_dict(node, additional_fields=None):
     return node_dict
 
 
-def get_initial_nodes(driver, search_type, search_value, search_operator, node_type, num_connections_show_all_overlaps, case_sensitive_search, search_source_select):
+def get_initial_nodes(driver, search_type, search_value, search_operator, node_type, num_connections_show_all_overlaps, case_sensitive_search, search_source_select, overlap_source_select1='', overlap_source_select2=''):
     try:       
+        logger.info(f"get_initial_nodes called with: search_type={search_type}, overlap_source_select1='{overlap_source_select1}', overlap_source_select2='{overlap_source_select2}'")
+        
         with driver.session() as session:
             #########################################################################################
             # Search of a specific node
@@ -148,21 +150,161 @@ def get_initial_nodes(driver, search_type, search_value, search_operator, node_t
                     logger.warning(f"No identity labels found in database. Available: {available_labels}")
                     return []
                 
-                # Build Cypher query to find shared identifiers
-                query = """
-                MATCH (identifier)
-                WHERE ANY(label IN labels(identifier) WHERE label IN $identity_labels)
-                WITH identifier
-                MATCH (obs:observation_of_identity)-[r]->(identifier)
-                WITH identifier, count(DISTINCT obs) as observation_count
-                WHERE observation_count >= $min_connections
-                RETURN identifier, observation_count
-                ORDER BY observation_count DESC
-                """
-                
-                result = session.run(query, 
-                                   identity_labels=identity_labels,
-                                   min_connections=num_connections_show_all_overlaps)
+                # Build Cypher query to find shared identifiers with source filtering
+                # Always enter source filtering logic if either parameter is provided (even if empty)
+                # This allows us to handle empty arrays as "search all sources" properly
+                if overlap_source_select1 is not None or overlap_source_select2 is not None:
+                    logger.info(f"Source filtering is enabled: overlap_source_select1='{overlap_source_select1}', overlap_source_select2='{overlap_source_select2}'")
+                    # Parse source lists
+                    primary_sources = []
+                    if overlap_source_select1 and overlap_source_select1.strip():
+                        primary_sources = [s.strip() for s in overlap_source_select1.split(',') if s.strip()]
+                    
+                    compare_sources = []
+                    if overlap_source_select2 and overlap_source_select2.strip():
+                        compare_sources = [s.strip() for s in overlap_source_select2.split(',') if s.strip()]
+                    
+                    logger.info(f"Parsed sources: primary_sources={primary_sources}, compare_sources={compare_sources}")
+                    
+                    # Build query with source filtering
+                    # Handle different combinations: both specified, only primary, only compare, or mixed (one empty, one specified)
+                    # 
+                    # Logic for empty arrays:
+                    # - If primary_sources=[] and compare_sources=['source1'], it means:
+                    #   * Search ALL sources for primary observations
+                    #   * Search only 'source1' for compare observations
+                    # - If primary_sources=['source1'] and compare_sources=[], it means:
+                    #   * Search only 'source1' for primary observations  
+                    #   * Search ALL sources for compare observations
+                    # - If both are empty (primary_sources=[] and compare_sources=[]), it means:
+                    #   * Search ALL sources for primary observations
+                    #   * Search ALL sources for compare observations
+                    #   * This is different from "no source filtering" because it still uses the source filtering structure
+                    #
+                    if primary_sources and compare_sources:
+                        logger.info("Using query with both primary and compare sources specified")
+                        # Both primary and compare sources specified
+                        query = """
+                        MATCH (identifier)
+                        WHERE ANY(label IN labels(identifier) WHERE label IN $identity_labels)
+                        WITH identifier
+                        MATCH (s1:source)-[:has_observation]->(obs1:observation_of_identity)-[r1]->(identifier)
+                        WHERE s1.value IN $primary_sources
+                        WITH identifier, count(DISTINCT obs1) as primary_count
+                        MATCH (s2:source)-[:has_observation]->(obs2:observation_of_identity)-[r2]->(identifier)
+                        WHERE s2.value IN $compare_sources
+                        WITH identifier, primary_count, count(DISTINCT obs2) as compare_count
+                        WITH identifier, primary_count + compare_count as total_count
+                        WHERE total_count >= $min_connections
+                        RETURN identifier, total_count as observation_count
+                        ORDER BY observation_count DESC
+                        """
+                        
+                        result = session.run(query, 
+                                           identity_labels=identity_labels,
+                                           primary_sources=primary_sources,
+                                           compare_sources=compare_sources,
+                                           min_connections=num_connections_show_all_overlaps)
+                    elif primary_sources and not compare_sources:
+                        logger.info("Using query with only primary sources specified (compare_sources is empty - search all sources for comparison)")
+                        # Only primary sources specified, compare against all sources
+                        query = """
+                        MATCH (identifier)
+                        WHERE ANY(label IN labels(identifier) WHERE label IN $identity_labels)
+                        WITH identifier
+                        MATCH (s1:source)-[:has_observation]->(obs1:observation_of_identity)-[r1]->(identifier)
+                        WHERE s1.value IN $primary_sources
+                        WITH identifier, count(DISTINCT obs1) as primary_count
+                        MATCH (s2:source)-[:has_observation]->(obs2:observation_of_identity)-[r2]->(identifier)
+                        WITH identifier, primary_count, count(DISTINCT obs2) as compare_count
+                        WITH identifier, primary_count + compare_count as total_count
+                        WHERE total_count >= $min_connections
+                        RETURN identifier, total_count as observation_count
+                        ORDER BY observation_count DESC
+                        """
+                        
+                        result = session.run(query, 
+                                           identity_labels=identity_labels,
+                                           primary_sources=primary_sources,
+                                           min_connections=num_connections_show_all_overlaps)
+                    elif compare_sources and not primary_sources:
+                        logger.info("Using query with only compare sources specified (primary_sources is empty - search all sources for primary)")
+                        # Only compare sources specified, search all sources for primary
+                        query = """
+                        MATCH (identifier)
+                        WHERE ANY(label IN labels(identifier) WHERE label IN $identity_labels)
+                        WITH identifier
+                        MATCH (s1:source)-[:has_observation]->(obs1:observation_of_identity)-[r1]->(identifier)
+                        WITH identifier, count(DISTINCT obs1) as primary_count
+                        MATCH (s2:source)-[:has_observation]->(obs2:observation_of_identity)-[r2]->(identifier)
+                        WHERE s2.value IN $compare_sources
+                        WITH identifier, primary_count, count(DISTINCT obs2) as compare_count
+                        WITH identifier, primary_count + compare_count as total_count
+                        WHERE total_count >= $min_connections
+                        RETURN identifier, total_count as observation_count
+                        ORDER BY observation_count DESC
+                        """
+                        
+                        result = session.run(query, 
+                                           identity_labels=identity_labels,
+                                           compare_sources=compare_sources,
+                                           min_connections=num_connections_show_all_overlaps)
+                    elif not primary_sources and not compare_sources:
+                        logger.info("Using query with both sides empty - search all sources for both primary and compare")
+                        # Both primary and compare sources are empty - search all sources on both sides
+                        query = """
+                        MATCH (identifier)
+                        WHERE ANY(label IN labels(identifier) WHERE label IN $identity_labels)
+                        WITH identifier
+                        MATCH (s1:source)-[:has_observation]->(obs1:observation_of_identity)-[r1]->(identifier)
+                        WITH identifier, count(DISTINCT obs1) as primary_count
+                        MATCH (s2:source)-[:has_observation]->(obs2:observation_of_identity)-[r2]->(identifier)
+                        WITH identifier, primary_count, count(DISTINCT obs2) as compare_count
+                        WITH identifier, primary_count + compare_count as total_count
+                        WHERE total_count >= $min_connections
+                        RETURN identifier, total_count as observation_count
+                        ORDER BY observation_count DESC
+                        """
+                        
+                        result = session.run(query, 
+                                           identity_labels=identity_labels,
+                                           min_connections=num_connections_show_all_overlaps)
+                    else:
+                        # This shouldn't happen given our logic above, but just in case
+                        logger.warning("Unexpected state: both primary_sources and compare_sources are empty")
+                        # Fall back to no source filtering
+                        query = """
+                        MATCH (identifier)
+                        WHERE ANY(label IN labels(identifier) WHERE label IN $identity_labels)
+                        WITH identifier
+                        MATCH (obs:observation_of_identity)-[r]->(identifier)
+                        WITH identifier, count(DISTINCT obs) as observation_count
+                        WHERE observation_count >= $min_connections
+                        RETURN identifier, observation_count
+                        ORDER BY observation_count DESC
+                        """
+                        
+                        result = session.run(query, 
+                                           identity_labels=identity_labels,
+                                           min_connections=num_connections_show_all_overlaps)
+                else:
+                    logger.info("Using query with no source filtering (all sources)")
+                    logger.info("Both overlap_source_select1 and overlap_source_select2 are empty or whitespace - searching ALL sources")
+                    # No source filtering - use original query
+                    query = """
+                    MATCH (identifier)
+                    WHERE ANY(label IN labels(identifier) WHERE label IN $identity_labels)
+                    WITH identifier
+                    MATCH (obs:observation_of_identity)-[r]->(identifier)
+                    WITH identifier, count(DISTINCT obs) as observation_count
+                    WHERE observation_count >= $min_connections
+                    RETURN identifier, observation_count
+                    ORDER BY observation_count DESC
+                    """
+                    
+                    result = session.run(query, 
+                                       identity_labels=identity_labels,
+                                       min_connections=num_connections_show_all_overlaps)
                 
                 # Convert results
                 relationships = []
@@ -173,6 +315,21 @@ def get_initial_nodes(driver, search_type, search_value, search_operator, node_t
                     relationships.append(node_dict)
                 
                 logger.info(f"Found {len(relationships)} total shared identifiers")
+                if overlap_source_select1 or overlap_source_select2:
+                    logger.info(f"Query used source filtering with primary_sources={primary_sources if 'primary_sources' in locals() else 'N/A'} and compare_sources={compare_sources if 'compare_sources' in locals() else 'N/A'}")
+                    if 'primary_sources' in locals() and 'compare_sources' in locals():
+                        if primary_sources and compare_sources:
+                            logger.info(f"Search pattern: Primary sources: {primary_sources} + Compare sources: {compare_sources}")
+                        elif primary_sources and not compare_sources:
+                            logger.info(f"Search pattern: Primary sources: {primary_sources} + Compare sources: ALL SOURCES")
+                        elif compare_sources and not primary_sources:
+                            logger.info(f"Search pattern: Primary sources: ALL SOURCES + Compare sources: {compare_sources}")
+                        elif not primary_sources and not compare_sources:
+                            logger.info("Search pattern: Primary sources: ALL SOURCES + Compare sources: ALL SOURCES")
+                        else:
+                            logger.info("Search pattern: Both sides use ALL SOURCES")
+                else:
+                    logger.info("Query used no source filtering (searched all sources)")
                 return relationships
             else:
                 # Return empty graph if no search or show_overlaps is specified

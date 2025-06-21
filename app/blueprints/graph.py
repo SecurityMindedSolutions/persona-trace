@@ -45,6 +45,10 @@ def api_graph_data():
         # Show all overlaps
         num_connections_show_all_overlaps = request.args.get('numConnectionsShowAllOverlaps', '1')
         num_hops_show_all_overlaps = request.args.get('numHopsShowAllOverlaps', '1')
+        # Overlap source filtering
+        overlap_source_select1 = request.args.get('overlapSourceSelect1', '')
+        overlap_source_select2 = request.args.get('overlapSourceSelect2', '')
+        show_nodes_only_overlaps = request.args.get('showNodesOnlyOverlaps', 'false').lower() == 'true'
         # Fake data parameter
         fake_data = request.args.get('fake_data', 'false').lower() == 'true'
         print(f"Fake data: {fake_data}")
@@ -76,7 +80,8 @@ def api_graph_data():
                 node_type=node_type,
                 num_hops=num_hops_node_search if search_type == 'nodeValue' else num_hops_show_all_overlaps,
                 num_connections_show_all_overlaps=num_connections_show_all_overlaps,
-                show_nodes_only_search=show_nodes_only_search
+                show_nodes_only_search=show_nodes_only_search,
+                show_nodes_only_overlaps=show_nodes_only_overlaps
             )
             
             # Return fake data
@@ -107,7 +112,9 @@ def api_graph_data():
             node_type=node_type,
             num_connections_show_all_overlaps=num_connections_show_all_overlaps,
             case_sensitive_search=case_sensitive_search,
-            search_source_select=search_source_select
+            search_source_select=search_source_select,
+            overlap_source_select1=overlap_source_select1,
+            overlap_source_select2=overlap_source_select2
         )
         logger.info(f"Initial nodes {len(initial_nodes)}: {initial_nodes}")
 
@@ -125,7 +132,8 @@ def api_graph_data():
             driver=driver,
             initial_nodes=initial_nodes,
             num_hops=num_hops_node_search if search_type == 'nodeValue' else num_hops_show_all_overlaps,
-            show_nodes_only_search=show_nodes_only_search
+            show_nodes_only_search=show_nodes_only_search,
+            show_nodes_only_overlaps=show_nodes_only_overlaps
         )
 
         logger.info(f"Final node count: {len(data['nodes'])}")
@@ -294,9 +302,9 @@ def flatten_properties(props, prefix=''):
     return flat
 
 
-def get_graph_data(driver, initial_nodes, num_hops, show_nodes_only_search):
+def get_graph_data(driver, initial_nodes, num_hops, show_nodes_only_search, show_nodes_only_overlaps):
     try:
-        logger.info(f"Getting graph data with arguments: driver={driver}, initial_nodes={initial_nodes}, num_hops={num_hops}, show_nodes_only_search={show_nodes_only_search}")
+        logger.info(f"Getting graph data with arguments: driver={driver}, initial_nodes={initial_nodes}, num_hops={num_hops}, show_nodes_only_search={show_nodes_only_search}, show_nodes_only_overlaps={show_nodes_only_overlaps}")
         
         nodes = []
         seen_ids = set()
@@ -314,144 +322,57 @@ def get_graph_data(driver, initial_nodes, num_hops, show_nodes_only_search):
         logger.info(f"Initial node IDs: {initial_node_ids}")
 
         # If show_nodes_only_search is True, only process the initial nodes
-        if show_nodes_only_search:
+        if show_nodes_only_overlaps:
+            logger.info("Show nodes only overlaps is enabled - only processing overlapping nodes")
+            # We'll process nodes normally but filter to only overlapping ones later
+            all_nodes = initial_nodes
+        elif show_nodes_only_search:
             logger.info("Show nodes only search is enabled - only processing initial nodes")
             all_nodes = initial_nodes
         else:
             # Implement hop-based traversal for overlapping nodes
-            logger.info(f"Getting overlapping nodes within {num_hops} hops of {len(initial_node_ids)} initial nodes")
-            
-            with driver.session() as session:
-                all_nodes = []
-                current_observation_ids = set()
+            if num_hops == 0:
+                logger.info("Num hops is 0 - returning only initial nodes")
+                all_nodes = initial_nodes
+            else:
+                logger.info(f"Getting overlapping nodes within {num_hops} hops of {len(initial_node_ids)} initial nodes")
                 
-                # Start with initial nodes and find their direct observations
-                if num_hops >= 0:
-                    # Check if initial nodes are observations or other node types
-                    initial_observations = []
-                    initial_other_nodes = []
+                with driver.session() as session:
+                    all_nodes = []
+                    current_observation_ids = set()
                     
-                    for v in initial_nodes:
-                        if isinstance(v, dict):
-                            v_dict = v
-                        else:
-                            v_dict = dict(v)
-                            v_dict['id'] = v.id
-                            v_dict['elementId'] = v.element_id
-                            v_dict['labels'] = list(v.labels)
+                    # Start with initial nodes and find their direct observations
+                    if num_hops >= 0:
+                        # Check if initial nodes are observations or other node types
+                        initial_observations = []
+                        initial_other_nodes = []
                         
-                        if 'observation_of_identity' in v_dict['labels']:
-                            initial_observations.append(v_dict)
-                        else:
-                            initial_other_nodes.append(v_dict)
-                    
-                    # If we have non-observation initial nodes, find their observations
-                    if initial_other_nodes:
-                        initial_other_ids = [str(v['elementId']) for v in initial_other_nodes]
-                        direct_obs_query = """
-                        MATCH (identifier)-[r]-(obs:observation_of_identity)
-                        WHERE elementId(identifier) IN $initial_ids
-                        RETURN DISTINCT obs
-                        """
-                        direct_obs_result = session.run(direct_obs_query, initial_ids=initial_other_ids)
-                        
-                        for record in direct_obs_result:
-                            obs = record["obs"]
-                            obs_id = str(obs.element_id)
-                            current_observation_ids.add(obs_id)
+                        for v in initial_nodes:
+                            if isinstance(v, dict):
+                                v_dict = v
+                            else:
+                                v_dict = dict(v)
+                                v_dict['id'] = v.id
+                                v_dict['elementId'] = v.element_id
+                                v_dict['labels'] = list(v.labels)
                             
-                            # Add observation to all_nodes
-                            obs_dict = dict(obs)
-                            obs_dict['id'] = obs.id
-                            obs_dict['elementId'] = obs.element_id
-                            obs_dict['labels'] = list(obs.labels)
-                            all_nodes.append(obs_dict)
-                            
-                            # Also add the source node for this observation
-                            source_query = """
-                            MATCH (s:source)-[:has_observation]->(obs:observation_of_identity)
-                            WHERE elementId(obs) = $obs_id
-                            RETURN s
-                            """
-                            source_result = session.run(source_query, obs_id=obs_id)
-                            source_record = source_result.single()
-                            if source_record:
-                                source = source_record["s"]
-                                source_dict = dict(source)
-                                source_dict['id'] = source.id
-                                source_dict['elementId'] = source.element_id
-                                source_dict['labels'] = list(source.labels)
-                                all_nodes.append(source_dict)
-                    
-                    # Add initial observations directly to current_observation_ids
-                    for obs in initial_observations:
-                        obs_id = str(obs['elementId'])
-                        current_observation_ids.add(obs_id)
-                        all_nodes.append(obs)
+                            if 'observation_of_identity' in v_dict['labels']:
+                                initial_observations.append(v_dict)
+                            else:
+                                initial_other_nodes.append(v_dict)
                         
-                        # Also add the source node for this observation
-                        source_query = """
-                        MATCH (s:source)-[:has_observation]->(obs:observation_of_identity)
-                        WHERE elementId(obs) = $obs_id
-                        RETURN s
-                        """
-                        source_result = session.run(source_query, obs_id=obs_id)
-                        source_record = source_result.single()
-                        if source_record:
-                            source = source_record["s"]
-                            source_dict = dict(source)
-                            source_dict['id'] = source.id
-                            source_dict['elementId'] = source.element_id
-                            source_dict['labels'] = list(source.labels)
-                            all_nodes.append(source_dict)
-                    
-                    # Add all initial nodes to all_nodes
-                    all_nodes.extend(initial_other_nodes)
-                    
-                    # Find overlapping nodes connected to the observations
-                    if current_observation_ids:
-                        logger.info(f"Looking for overlapping nodes from {len(current_observation_ids)} observations: {list(current_observation_ids)}")
-                        
-                        all_connected_nodes_query = """
-                        MATCH (obs:observation_of_identity)-[r]->(identifier)
-                        WHERE elementId(obs) IN $observation_ids
-                        WITH identifier
-                        MATCH (other_obs:observation_of_identity)-[other_r]->(identifier)
-                        WITH identifier, count(DISTINCT other_obs) as overlap_count
-                        WHERE overlap_count >= 2
-                        RETURN identifier, overlap_count
-                        """
-                        
-                        all_connected_result = session.run(all_connected_nodes_query, observation_ids=list(current_observation_ids))
-                        
-                        logger.info(f"Found {len(list(all_connected_result))} overlapping nodes")
-                        
-                        for record in all_connected_result:
-                            identifier = record["identifier"]
-                            overlap_count = record["overlap_count"]
-                            identifier_id = str(identifier.element_id)
-                            
-                            logger.info(f"Overlapping node: {identifier.get('value', 'Unknown')} with {overlap_count} observations")
-                            
-                            # Add overlapping nodes only (2+ observations)
-                            identifier_dict = dict(identifier)
-                            identifier_dict['id'] = identifier.id
-                            identifier_dict['elementId'] = identifier.element_id
-                            identifier_dict['labels'] = list(identifier.labels)
-                            identifier_dict['overlap_count'] = overlap_count
-                            all_nodes.append(identifier_dict)
-                            
-                            # Find all observations connected to this overlapping node
-                            obs_query = """
-                            MATCH (obs:observation_of_identity)-[r]->(identifier)
-                            WHERE elementId(identifier) = $identifier_id
+                        # If we have non-observation initial nodes, find their observations
+                        if initial_other_nodes:
+                            initial_other_ids = [str(v['elementId']) for v in initial_other_nodes]
+                            direct_obs_query = """
+                            MATCH (identifier)-[r]-(obs:observation_of_identity)
+                            WHERE elementId(identifier) IN $initial_ids
                             RETURN DISTINCT obs
                             """
+                            direct_obs_result = session.run(direct_obs_query, initial_ids=initial_other_ids)
                             
-                            obs_result = session.run(obs_query, identifier_id=identifier_id)
-                            
-                            for obs_record in obs_result:
-                                obs = obs_record["obs"]
+                            for record in direct_obs_result:
+                                obs = record["obs"]
                                 obs_id = str(obs.element_id)
                                 current_observation_ids.add(obs_id)
                                 
@@ -477,63 +398,12 @@ def get_graph_data(driver, initial_nodes, num_hops, show_nodes_only_search):
                                     source_dict['elementId'] = source.element_id
                                     source_dict['labels'] = list(source.labels)
                                     all_nodes.append(source_dict)
-                
-                # For each hop level beyond 0, find overlapping nodes and their observations
-                for hop in range(1, num_hops + 1):
-                    if not current_observation_ids:
-                        break
-                    
-                    logger.info(f"Processing hop {hop} with {len(current_observation_ids)} observations")
-                    
-                    # Find overlapping nodes connected to current observations (2+ observations only)
-                    overlapping_nodes_query = """
-                    MATCH (obs:observation_of_identity)-[r]->(identifier)
-                    WHERE elementId(obs) IN $observation_ids
-                    WITH identifier
-                    MATCH (other_obs:observation_of_identity)-[other_r]->(identifier)
-                    WITH identifier, count(DISTINCT other_obs) as overlap_count
-                    WHERE overlap_count >= 2
-                    RETURN identifier, overlap_count
-                    """
-                    
-                    overlapping_result = session.run(overlapping_nodes_query, observation_ids=list(current_observation_ids))
-                    
-                    new_observation_ids = set()
-                    new_nodes = []
-                    
-                    for record in overlapping_result:
-                        identifier = record["identifier"]
-                        overlap_count = record["overlap_count"]
-                        identifier_id = str(identifier.element_id)
                         
-                        # Add overlapping nodes only (2+ observations)
-                        identifier_dict = dict(identifier)
-                        identifier_dict['id'] = identifier.id
-                        identifier_dict['elementId'] = identifier.element_id
-                        identifier_dict['labels'] = list(identifier.labels)
-                        identifier_dict['overlap_count'] = overlap_count
-                        new_nodes.append(identifier_dict)
-                        
-                        # Find all observations connected to this overlapping node
-                        obs_query = """
-                        MATCH (obs:observation_of_identity)-[r]->(identifier)
-                        WHERE elementId(identifier) = $identifier_id
-                        RETURN DISTINCT obs
-                        """
-                        
-                        obs_result = session.run(obs_query, identifier_id=identifier_id)
-                        
-                        for obs_record in obs_result:
-                            obs = obs_record["obs"]
-                            obs_id = str(obs.element_id)
-                            new_observation_ids.add(obs_id)
-                            
-                            # Add observation to new_nodes
-                            obs_dict = dict(obs)
-                            obs_dict['id'] = obs.id
-                            obs_dict['elementId'] = obs.element_id
-                            obs_dict['labels'] = list(obs.labels)
-                            new_nodes.append(obs_dict)
+                        # Add initial observations directly to current_observation_ids
+                        for obs in initial_observations:
+                            obs_id = str(obs['elementId'])
+                            current_observation_ids.add(obs_id)
+                            all_nodes.append(obs)
                             
                             # Also add the source node for this observation
                             source_query = """
@@ -549,26 +419,172 @@ def get_graph_data(driver, initial_nodes, num_hops, show_nodes_only_search):
                                 source_dict['id'] = source.id
                                 source_dict['elementId'] = source.element_id
                                 source_dict['labels'] = list(source.labels)
-                                new_nodes.append(source_dict)
+                                all_nodes.append(source_dict)
+                        
+                        # Add all initial nodes to all_nodes
+                        all_nodes.extend(initial_other_nodes)
+                        
+                        # Find overlapping nodes connected to the observations
+                        if current_observation_ids:
+                            logger.info(f"Looking for overlapping nodes from {len(current_observation_ids)} observations: {list(current_observation_ids)}")
+                            
+                            all_connected_nodes_query = """
+                            MATCH (obs:observation_of_identity)-[r]->(identifier)
+                            WHERE elementId(obs) IN $observation_ids
+                            WITH identifier
+                            MATCH (other_obs:observation_of_identity)-[other_r]->(identifier)
+                            WITH identifier, count(DISTINCT other_obs) as overlap_count
+                            WHERE overlap_count >= 2
+                            RETURN identifier, overlap_count
+                            """
+                            
+                            all_connected_result = session.run(all_connected_nodes_query, observation_ids=list(current_observation_ids))
+                            
+                            logger.info(f"Found {len(list(all_connected_result))} overlapping nodes")
+                            
+                            for record in all_connected_result:
+                                identifier = record["identifier"]
+                                overlap_count = record["overlap_count"]
+                                identifier_id = str(identifier.element_id)
+                                
+                                logger.info(f"Overlapping node: {identifier.get('value', 'Unknown')} with {overlap_count} observations")
+                                
+                                # Add overlapping nodes only (2+ observations)
+                                identifier_dict = dict(identifier)
+                                identifier_dict['id'] = identifier.id
+                                identifier_dict['elementId'] = identifier.element_id
+                                identifier_dict['labels'] = list(identifier.labels)
+                                identifier_dict['overlap_count'] = overlap_count
+                                all_nodes.append(identifier_dict)
+                                
+                                # Find all observations connected to this overlapping node
+                                obs_query = """
+                                MATCH (obs:observation_of_identity)-[r]->(identifier)
+                                WHERE elementId(identifier) = $identifier_id
+                                RETURN DISTINCT obs
+                                """
+                                
+                                obs_result = session.run(obs_query, identifier_id=identifier_id)
+                                
+                                for obs_record in obs_result:
+                                    obs = obs_record["obs"]
+                                    obs_id = str(obs.element_id)
+                                    current_observation_ids.add(obs_id)
+                                    
+                                    # Add observation to all_nodes
+                                    obs_dict = dict(obs)
+                                    obs_dict['id'] = obs.id
+                                    obs_dict['elementId'] = obs.element_id
+                                    obs_dict['labels'] = list(obs.labels)
+                                    all_nodes.append(obs_dict)
+                                    
+                                    # Also add the source node for this observation
+                                    source_query = """
+                                    MATCH (s:source)-[:has_observation]->(obs:observation_of_identity)
+                                    WHERE elementId(obs) = $obs_id
+                                    RETURN s
+                                    """
+                                    source_result = session.run(source_query, obs_id=obs_id)
+                                    source_record = source_result.single()
+                                    if source_record:
+                                        source = source_record["s"]
+                                        source_dict = dict(source)
+                                        source_dict['id'] = source.id
+                                        source_dict['elementId'] = source.element_id
+                                        source_dict['labels'] = list(source.labels)
+                                        all_nodes.append(source_dict)
                     
-                    # Update current observation IDs for next iteration
-                    current_observation_ids = new_observation_ids
+                    # For each hop level beyond 0, find overlapping nodes and their observations
+                    for hop in range(1, num_hops + 1):
+                        if not current_observation_ids:
+                            break
+                        
+                        logger.info(f"Processing hop {hop} with {len(current_observation_ids)} observations")
+                        
+                        # Find overlapping nodes connected to current observations (2+ observations only)
+                        overlapping_nodes_query = """
+                        MATCH (obs:observation_of_identity)-[r]->(identifier)
+                        WHERE elementId(obs) IN $observation_ids
+                        WITH identifier
+                        MATCH (other_obs:observation_of_identity)-[other_r]->(identifier)
+                        WITH identifier, count(DISTINCT other_obs) as overlap_count
+                        WHERE overlap_count >= 2
+                        RETURN identifier, overlap_count
+                        """
+                        
+                        overlapping_result = session.run(overlapping_nodes_query, observation_ids=list(current_observation_ids))
+                        
+                        new_observation_ids = set()
+                        new_nodes = []
+                        
+                        for record in overlapping_result:
+                            identifier = record["identifier"]
+                            overlap_count = record["overlap_count"]
+                            identifier_id = str(identifier.element_id)
+                            
+                            # Add overlapping nodes only (2+ observations)
+                            identifier_dict = dict(identifier)
+                            identifier_dict['id'] = identifier.id
+                            identifier_dict['elementId'] = identifier.element_id
+                            identifier_dict['labels'] = list(identifier.labels)
+                            identifier_dict['overlap_count'] = overlap_count
+                            new_nodes.append(identifier_dict)
+                            
+                            # Find all observations connected to this overlapping node
+                            obs_query = """
+                            MATCH (obs:observation_of_identity)-[r]->(identifier)
+                            WHERE elementId(identifier) = $identifier_id
+                            RETURN DISTINCT obs
+                            """
+                            
+                            obs_result = session.run(obs_query, identifier_id=identifier_id)
+                            
+                            for obs_record in obs_result:
+                                obs = obs_record["obs"]
+                                obs_id = str(obs.element_id)
+                                new_observation_ids.add(obs_id)
+                                
+                                # Add observation to new_nodes
+                                obs_dict = dict(obs)
+                                obs_dict['id'] = obs.id
+                                obs_dict['elementId'] = obs.element_id
+                                obs_dict['labels'] = list(obs.labels)
+                                new_nodes.append(obs_dict)
+                                
+                                # Also add the source node for this observation
+                                source_query = """
+                                MATCH (s:source)-[:has_observation]->(obs:observation_of_identity)
+                                WHERE elementId(obs) = $obs_id
+                                RETURN s
+                                """
+                                source_result = session.run(source_query, obs_id=obs_id)
+                                source_record = source_result.single()
+                                if source_record:
+                                    source = source_record["s"]
+                                    source_dict = dict(source)
+                                    source_dict['id'] = source.id
+                                    source_dict['elementId'] = source.element_id
+                                    source_dict['labels'] = list(source.labels)
+                                    new_nodes.append(source_dict)
+                        
+                        # Update current observation IDs for next iteration
+                        current_observation_ids = new_observation_ids
+                        
+                        # Add new nodes to all_nodes
+                        all_nodes.extend(new_nodes)
+                        
+                        logger.info(f"Hop {hop}: Found {len([n for n in new_nodes if 'overlap_count' in n])} overlapping nodes and {len(new_observation_ids)} observations")
                     
-                    # Add new nodes to all_nodes
-                    all_nodes.extend(new_nodes)
+                    # Remove duplicates based on elementId
+                    unique_nodes = {}
+                    for node in all_nodes:
+                        node_id = str(node['elementId'])
+                        if node_id not in unique_nodes:
+                            unique_nodes[node_id] = node
                     
-                    logger.info(f"Hop {hop}: Found {len([n for n in new_nodes if 'overlap_count' in n])} overlapping nodes and {len(new_observation_ids)} observations")
+                    all_nodes = list(unique_nodes.values())
                 
-                # Remove duplicates based on elementId
-                unique_nodes = {}
-                for node in all_nodes:
-                    node_id = str(node['elementId'])
-                    if node_id not in unique_nodes:
-                        unique_nodes[node_id] = node
-                
-                all_nodes = list(unique_nodes.values())
-            
-            logger.info(f"Found {len(all_nodes)} total unique nodes")
+                logger.info(f"Found {len(all_nodes)} total unique nodes")
         
         # Process all nodes - we need a session for this regardless of show_nodes_only_search
         with driver.session() as session:
@@ -605,9 +621,11 @@ def get_graph_data(driver, initial_nodes, num_hops, show_nodes_only_search):
                     tooltip = '\n'.join(f"{k}: {v}" if not k.endswith('_identifiers') else f"{k}:\n{v}" for k, v in sorted(flat.items()))
                 else:
                     value = v.get('value', v_id)
-                    # Use overlap_count if available, otherwise calculate
+                    # Use overlap_count if available, otherwise use observation_count if available, otherwise calculate
                     if 'overlap_count' in v:
                         num_observations = v['overlap_count']
+                    elif 'observation_count' in v:
+                        num_observations = v['observation_count']
                     else:
                         # Count observations connected to this identifier using Cypher
                         # Only count for node types that are not source or observation_of_identity
@@ -660,9 +678,18 @@ def get_graph_data(driver, initial_nodes, num_hops, show_nodes_only_search):
             logger.info(f"Processed {len(nodes)} nodes")
             logger.info(f"Seen IDs: {seen_ids}")
 
+            # Filter to only overlapping nodes if show_nodes_only_overlaps is True
+            if show_nodes_only_overlaps:
+                logger.info("Filtering to only overlapping nodes...")
+                overlapping_nodes = [node for node in nodes if node.get('is_shared', False) or node.get('num_observations', 0) > 1]
+                nodes = overlapping_nodes
+                logger.info(f"Filtered to {len(nodes)} overlapping nodes")
+                # Update seen_ids to only include overlapping nodes
+                seen_ids = {node['id'] for node in nodes}
+
             # Get ALL relationships between any vertices in our final set
             # Only get relationships if not in show_nodes_only_search mode
-            if not show_nodes_only_search:
+            if not show_nodes_only_search and not show_nodes_only_overlaps:
                 logger.info("Getting relationships between vertices...")
                 
                 # Get relationships using Cypher
