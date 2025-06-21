@@ -6,6 +6,7 @@ parser = argparse.ArgumentParser(description='PersonaTrace App')
 parser.add_argument('--neo4j_endpoint', type=str, help='Neo4j endpoint', default='bolt://localhost:7687')
 parser.add_argument('--neo4j_username', type=str, help='Neo4j username', default='neo4j')
 parser.add_argument('--neo4j_password', type=str, help='Neo4j password', default='personatrace')
+parser.add_argument('--debug', action='store_true', help='Debug mode')
 args = parser.parse_args()
 
 # Neo4j connection constants
@@ -31,7 +32,7 @@ handler.setFormatter(colorlog.ColoredFormatter(
     }
 ))
 logger.addHandler(handler)
-logger.setLevel('INFO')
+logger.setLevel('INFO' if not args.debug else 'DEBUG')
 from rich.console import Console
 console = Console()
 

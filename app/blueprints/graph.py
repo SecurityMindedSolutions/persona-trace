@@ -106,7 +106,8 @@ def api_graph_data():
             search_operator=search_operator,
             node_type=node_type,
             num_connections_show_all_overlaps=num_connections_show_all_overlaps,
-            case_sensitive_search=case_sensitive_search
+            case_sensitive_search=case_sensitive_search,
+            search_source_select=search_source_select
         )
         logger.info(f"Initial nodes {len(initial_nodes)}: {initial_nodes}")
 

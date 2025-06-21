@@ -1,8 +1,85 @@
 from lib.constants import logger
 
 
+def _build_search_query(node_type=None, search_operator='equals', case_sensitive=True, search_source_select=''):
+    """Build Cypher query based on search parameters."""
+    # Define operator mappings
+    operator_map = {
+        'equals': '=',
+        'contains': 'CONTAINS',
+        'starts_with': 'STARTS WITH',
+        'ends_with': 'ENDS WITH'
+    }
+    
+    if search_operator not in operator_map:
+        raise ValueError(f"Invalid search operator: {search_operator}")
+    
+    operator = operator_map[search_operator]
+    
+    # Build the WHERE clause for the node value
+    if case_sensitive:
+        where_clause = f"v.value {operator} $search_value"
+    else:
+        where_clause = f"toLower(v.value) {operator} toLower($search_value)"
+    
+    # Handle source filtering
+    if search_source_select and search_source_select.strip():
+        # Parse comma-separated sources
+        sources = [s.strip() for s in search_source_select.split(',') if s.strip()]
+        
+        if len(sources) == 1:
+            # Single source - use direct match
+            if node_type:
+                query = f"""
+                MATCH (s:source {{value: "{sources[0]}"}})-[:has_observation]->(o:observation_of_identity)-[:has_{node_type}]->(v:{node_type})
+                WHERE {where_clause}
+                RETURN v
+                """
+            else:
+                query = f"""
+                MATCH (s:source {{value: "{sources[0]}"}})-[:has_observation]->(o:observation_of_identity)-[r]->(v)
+                WHERE {where_clause}
+                RETURN v
+                """
+        else:
+            # Multiple sources - use IN clause
+            source_list = '[' + ', '.join([f'"{s}"' for s in sources]) + ']'
+            if node_type:
+                query = f"""
+                MATCH (s:source)-[:has_observation]->(o:observation_of_identity)-[:has_{node_type}]->(v:{node_type})
+                WHERE s.value IN {source_list} AND {where_clause}
+                RETURN DISTINCT v
+                """
+            else:
+                query = f"""
+                MATCH (s:source)-[:has_observation]->(o:observation_of_identity)-[r]->(v)
+                WHERE s.value IN {source_list} AND {where_clause}
+                RETURN DISTINCT v
+                """
+    else:
+        # No source filtering - search all sources
+        if node_type:
+            query = f"MATCH (v:{node_type}) WHERE {where_clause} RETURN v"
+        else:
+            query = f"MATCH (v) WHERE {where_clause} RETURN v"
+    
+    return query
 
-def get_initial_nodes(driver, search_type, search_value, search_operator, node_type, num_connections_show_all_overlaps, case_sensitive_search):
+
+def _convert_neo4j_node_to_dict(node, additional_fields=None):
+    """Convert Neo4j node to dictionary format."""
+    node_dict = dict(node)
+    node_dict['id'] = node.id
+    node_dict['elementId'] = node.element_id
+    node_dict['labels'] = list(node.labels)
+    
+    if additional_fields:
+        node_dict.update(additional_fields)
+    
+    return node_dict
+
+
+def get_initial_nodes(driver, search_type, search_value, search_operator, node_type, num_connections_show_all_overlaps, case_sensitive_search, search_source_select):
     try:       
         with driver.session() as session:
             #########################################################################################
@@ -18,112 +95,17 @@ def get_initial_nodes(driver, search_type, search_value, search_operator, node_t
                 available_labels = [record["label"] for record in label_result]
                 logger.info(f"Available labels: {available_labels}")
                 
-                # Build Cypher query based on search parameters
-                if node_type:
-                    # Check if the requested node type exists
-                    if node_type not in available_labels:
-                        logger.warning(f"Requested node type '{node_type}' not found in database. Available types: {available_labels}")
-                        return []
-                    
-                    # Filter by specific type
-                    if search_operator == 'equals':
-                        if case_sensitive_search:
-                            query = f"MATCH (v:{node_type}) WHERE v.value = $search_value RETURN v"
-                        else:
-                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) = toLower($search_value) RETURN v"
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'contains':
-                        if case_sensitive_search:
-                            query = f"MATCH (v:{node_type}) WHERE v.value CONTAINS $search_value RETURN v"
-                        else:
-                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) CONTAINS toLower($search_value) RETURN v"
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'starts_with':
-                        if case_sensitive_search:
-                            query = f"MATCH (v:{node_type}) WHERE v.value STARTS WITH $search_value RETURN v"
-                        else:
-                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) STARTS WITH toLower($search_value) RETURN v"
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'ends_with':
-                        if case_sensitive_search:
-                            query = f"MATCH (v:{node_type}) WHERE v.value ENDS WITH $search_value RETURN v" 
-                        else:
-                            query = f"MATCH (v:{node_type}) WHERE toLower(v.value) ENDS WITH toLower($search_value) RETURN v"
-                        result = session.run(query, search_value=search_value)
-                    else:
-                        raise ValueError(f"Invalid search operator: {search_operator}")
-                else:
-                    # Search across all node types
-                    if search_operator == 'equals':
-                        if case_sensitive_search:
-                            query = """
-                            MATCH (v)
-                            WHERE v.value = $search_value
-                            RETURN v
-                            """
-                        else:
-                            query = """
-                            MATCH (v)
-                            WHERE toLower(v.value) = toLower($search_value)
-                            RETURN v
-                            """
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'contains':
-                        if case_sensitive_search:
-                            query = """
-                            MATCH (v)
-                            WHERE v.value CONTAINS $search_value
-                            RETURN v
-                            """
-                        else:
-                            query = """
-                            MATCH (v)
-                            WHERE toLower(v.value) CONTAINS toLower($search_value)
-                            RETURN v
-                            """
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'starts_with':
-                        if case_sensitive_search:
-                            query = """
-                            MATCH (v)
-                            WHERE v.value STARTS WITH $search_value
-                            RETURN v
-                            """
-                        else:
-                            query = """
-                            MATCH (v)
-                            WHERE toLower(v.value) STARTS WITH toLower($search_value)
-                            RETURN v
-                            """
-                        result = session.run(query, search_value=search_value)
-                    elif search_operator == 'ends_with':
-                        if case_sensitive_search:
-                            query = """
-                            MATCH (v)
-                            WHERE v.value ENDS WITH $search_value
-                            RETURN v
-                            """
-                        else:
-                            query = """
-                            MATCH (v)
-                            WHERE toLower(v.value) ENDS WITH toLower($search_value)
-                            RETURN v
-                            """
-                        result = session.run(query, search_value=search_value)
-                    else:
-                        raise ValueError(f"Invalid search operator: {search_operator}")
+                # Check if the requested node type exists
+                if node_type and node_type not in available_labels:
+                    logger.warning(f"Requested node type '{node_type}' not found in database. Available types: {available_labels}")
+                    return []
+                
+                # Build and execute query
+                query = _build_search_query(node_type, search_operator, case_sensitive_search, search_source_select)
+                result = session.run(query, search_value=search_value)
                 
                 # Convert Neo4j nodes to list of dictionaries
-                nodes = []
-                for record in result:
-                    node = record["v"]
-                    # Convert Neo4j node to dictionary format
-                    node_dict = dict(node)
-                    node_dict['id'] = node.id
-                    node_dict['elementId'] = node.element_id
-                    node_dict['labels'] = list(node.labels)
-                    nodes.append(node_dict)
-                
+                nodes = [_convert_neo4j_node_to_dict(record["v"]) for record in result]
                 return nodes
                 
             #########################################################################################
@@ -132,16 +114,7 @@ def get_initial_nodes(driver, search_type, search_value, search_operator, node_t
             elif search_type == 'showAllOverlaps':
                 logger.info("Finding identifiers with multiple observations...")
                 
-                # First, let's find out what relationship types actually exist
-                relationship_query = """
-                CALL db.relationshipTypes() YIELD relationshipType
-                RETURN relationshipType
-                """
-                rel_result = session.run(relationship_query)
-                relationship_types = [record["relationshipType"] for record in rel_result]
-                logger.info(f"Available relationship types: {relationship_types}")
-                
-                # Also check what labels exist
+                # Get available labels
                 label_query = """
                 CALL db.labels() YIELD label
                 RETURN label
@@ -157,7 +130,6 @@ def get_initial_nodes(driver, search_type, search_value, search_operator, node_t
                     return []
                 
                 # Build Cypher query to find shared identifiers
-                # Use a more generic approach that doesn't assume specific relationship names
                 query = """
                 MATCH (identifier)
                 WHERE ANY(label IN labels(identifier) WHERE label IN $identity_labels)
@@ -173,14 +145,12 @@ def get_initial_nodes(driver, search_type, search_value, search_operator, node_t
                                    identity_labels=identity_labels,
                                    min_connections=num_connections_show_all_overlaps)
                 
+                # Convert results
                 relationships = []
                 for record in result:
                     node = record["identifier"]
-                    node_dict = dict(node)
-                    node_dict['id'] = node.id
-                    node_dict['elementId'] = node.element_id
-                    node_dict['labels'] = list(node.labels)
-                    node_dict['observation_count'] = record["observation_count"]
+                    additional_fields = {'observation_count': record["observation_count"]}
+                    node_dict = _convert_neo4j_node_to_dict(node, additional_fields)
                     relationships.append(node_dict)
                 
                 logger.info(f"Found {len(relationships)} total shared identifiers")

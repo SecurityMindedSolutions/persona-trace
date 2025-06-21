@@ -2081,7 +2081,7 @@
                     const searchValue = document.getElementById('searchValue').value.trim();
                     const numHopsNodeSearch = document.getElementById('numHopsNodeSearch').value;
                     const showNodesOnlySearch = document.getElementById('showNodesOnlySearch').checked;
-                    const searchSourceSelect = document.getElementById('searchSourceSelect').value;
+                    const searchSourceSelect = Array.from(document.getElementById('searchSourceSelect').selectedOptions).map(option => option.value);
                     const caseSensitiveSearch = document.getElementById('caseSensitiveSearch').checked;
 
                     if (!searchValue) {
