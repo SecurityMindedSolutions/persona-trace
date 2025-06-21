@@ -132,6 +132,10 @@
 }
 
 #resetView {
+    right: calc((var(--button-width) * 3) + 70px);
+}
+
+#runPhysics {
     right: calc((var(--button-width) * 2) + 50px);
 }
 
@@ -2109,11 +2113,15 @@ body {
     }
     
     #resetView {
-        right: calc((var(--button-width) * 2) + 35px);
+        right: calc((var(--button-width) * 3) + 70px);
+    }
+    
+    #runPhysics {
+        right: calc((var(--button-width) * 2) + 50px);
     }
     
     #showOverlaps {
-        right: calc(var(--button-width) + 20px);
+        right: calc(var(--button-width) + 30px);
     }
     
     #fitToView {

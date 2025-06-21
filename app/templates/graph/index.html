@@ -389,6 +389,9 @@
                 <button class="btn btn-secondary floating-button" id="resetView">
                     <i class="bi bi-arrow-repeat"></i> Reset View
                 </button>
+                <button class="btn btn-info floating-button" id="runPhysics">
+                    <i class="bi bi-gear"></i> Run Physics
+                </button>
                 <button class="btn btn-warning floating-button" id="showOverlaps">
                     <i class="bi bi-intersect"></i> Show Overlaps
                 </button>
@@ -2058,6 +2061,47 @@
                     
                     // Update stats to reflect visible relationship count
                     updateStats();
+                });
+
+                // Add Run Physics functionality
+                const runPhysicsButton = document.getElementById('runPhysics');
+                runPhysicsButton.addEventListener('click', () => {
+                    console.log('Running physics for 5 seconds...');
+                    
+                    // Disable the button during physics run
+                    runPhysicsButton.disabled = true;
+                    
+                    // Enable physics
+                    network.setOptions({ physics: { enabled: true } });
+                    
+                    // Start countdown from 10 seconds
+                    let countdown = 5;
+                    const updateCountdown = () => {
+                        if (countdown > 0) {
+                            runPhysicsButton.innerHTML = `<i class="bi bi-gear-fill"></i> Running... (${countdown}s)`;
+                            countdown--;
+                            setTimeout(updateCountdown, 1000);
+                        } else {
+                            console.log('Disabling physics after ' + countdown + ' seconds');
+                            network.setOptions({ physics: { enabled: false } });
+                            
+                            // Fit to view with a zoom out factor
+                            network.fit({
+                                animation: {
+                                    duration: 1000,
+                                    easingFunction: "easeOutQuart"
+                                },
+                                scale: 0.1  // This will make the view even more zoomed out
+                            });
+                            
+                            // Re-enable the button
+                            runPhysicsButton.disabled = false;
+                            runPhysicsButton.innerHTML = '<i class="bi bi-gear"></i> Run Physics';
+                        }
+                    };
+                    
+                    // Start the countdown
+                    updateCountdown();
                 });
 
                 // Show Overlaps functionality
