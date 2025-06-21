@@ -182,8 +182,7 @@
                                         </div>
                                         <div class="row mb-3">
                                             <div class="col-12">
-                                                <label for="overlapSourceSelect2" class="form-label">Compare Against Sources</label>
-                                                <small class="form-text text-muted">Select "All Sources" (default) or specific sources to compare against. Selecting specific sources will override "All Sources".</small>
+                                                <label for="overlapSourceSelect2" class="form-label">Compare Against</label>
                                                 <select class="form-select" id="overlapSourceSelect2" multiple>
                                                     <option value="" selected>All Sources</option>
                                                     <!-- Source types will be populated dynamically -->
@@ -855,7 +854,8 @@
                                 }
                             };
 
-                            return {
+                            // Create the initial node state that should be preserved
+                            const initialNodeState = {
                                 ...node,
                                 label: displayLabel,
                                 color: finalColor,
@@ -877,6 +877,29 @@
                                     enabled: false
                                 }
                             };
+
+                            // Store the initial state for restoration
+                            initialNodeState.initialState = {
+                                color: finalColor,
+                                borderWidth: node.borderWidth || 1,
+                                size: isOverlapping ? 45 : 30,
+                                font: {
+                                    color: '#000000',
+                                    size: isOverlapping ? 30 : 25,
+                                    bold: isOverlapping
+                                },
+                                shadow: isOverlapping ? {
+                                    enabled: true,
+                                    color: 'rgba(255, 165, 0, 0.3)',
+                                    size: 10,
+                                    x: 0,
+                                    y: 0
+                                } : {
+                                    enabled: false
+                                }
+                            };
+
+                            return initialNodeState;
                         });
 
                         // Process and add relationships
@@ -1973,32 +1996,19 @@
                     // Add Reset View functionality
                     const resetViewButton = document.getElementById('resetView');
                     resetViewButton.addEventListener('click', () => {
-                        // Show all nodes and reset their visibility
+                        // Show all nodes and reset their visibility to initial state
                         nodes.get().forEach(node => {
-                            const nodeColor = node.originalColor || defaultStyles.node;
-                            nodes.update({ 
-                                id: node.id, 
-                                hidden: false,
-                                size: node.is_shared ? 45 : 30,
-                                borderWidth: node.originalBorderWidth || (node.is_shared ? 3 : 1),
-                                color: {
-                                    background: nodeColor.background,
-                                    border: node.is_shared ? '#FFA500' : nodeColor.border,
-                                    highlight: {
-                                        background: '#FFFFFF',
-                                        border: '#007BFF'
-                                    },
-                                    hover: {
-                                        background: '#FFFFFF',
-                                        border: '#007BFF'
-                                    }
-                                },
-                                font: {
-                                    color: '#000000',
-                                    size: node.is_shared ? 30 : 25,
-                                    bold: node.is_shared
-                                }
-                            });
+                            if (node.initialState) {
+                                nodes.update({ 
+                                    id: node.id, 
+                                    hidden: false,
+                                    color: node.initialState.color,
+                                    borderWidth: node.initialState.borderWidth,
+                                    size: node.initialState.size,
+                                    font: node.initialState.font,
+                                    shadow: node.initialState.shadow
+                                });
+                            }
                         });
 
                         // Show all relationships
@@ -2468,56 +2478,18 @@
                         // Restore original colors when hover ends
                         if (hoveredNodeId === params.node) {
                             const node = nodes.get(params.node);
-                            const isOverlapping = node.num_observations > 1 && 
-                                            node.group !== 'source' && 
-                                            node.group !== 'observation_of_identity';
                             
-                            // Check if this is a focus node (selected in focus dropdown)
-                            const nodeSelect = document.getElementById('nodeSelect');
-                            const isFocusNode = nodeSelect && nodeSelect.value === params.node;
-                            
-                            // Use the node's originalColor property from the backend
-                            const nodeColor = node.originalColor || defaultStyles.node;
-                            
-                            // console.log('Restoring colors for node:', params.node, 'group:', node.group, 'color:', nodeColor);
-                            
-                            nodes.update({
-                                id: params.node,
-                                color: {
-                                    background: isFocusNode ? '#FFD700' : nodeColor.background,
-                                    border: isFocusNode ? '#FF4500' : (isOverlapping ? '#FFA500' : nodeColor.border),
-                                    highlight: {
-                                        background: '#FFFFFF',  // Keep consistent hover colors
-                                        border: '#007BFF'
-                                    },
-                                    hover: {
-                                        background: '#FFFFFF',
-                                        border: '#007BFF'
-                                    }
-                                },
-                                size: isFocusNode ? 50 : (isOverlapping ? 45 : 30),
-                                borderWidth: isFocusNode ? 4 : (node.borderWidth || (isOverlapping ? 3 : 1)), // Preserve backend borderWidth
-                                font: {
-                                    color: '#000000',
-                                    size: isFocusNode ? 30 : (isOverlapping ? 30 : 25),
-                                    bold: isFocusNode || isOverlapping
-                                },
-                                shadow: isFocusNode ? {
-                                    enabled: true,
-                                    color: 'rgba(255, 69, 0, 0.4)',
-                                    size: 15,
-                                    x: 0,
-                                    y: 0
-                                } : (isOverlapping ? {
-                                    enabled: true,
-                                    color: 'rgba(255, 165, 0, 0.3)',
-                                    size: 10,
-                                    x: 0,
-                                    y: 0
-                                } : {
-                                    enabled: false
-                                })
-                            });
+                            // Restore the exact initial state of the node
+                            if (node.initialState) {
+                                nodes.update({
+                                    id: params.node,
+                                    color: node.initialState.color,
+                                    borderWidth: node.initialState.borderWidth,
+                                    size: node.initialState.size,
+                                    font: node.initialState.font,
+                                    shadow: node.initialState.shadow
+                                });
+                            }
                             hoveredNodeId = null;
                         }
                         
