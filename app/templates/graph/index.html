@@ -939,7 +939,7 @@
                     relationships.add(processedRelationships);
                     
                     // Add clustering effects
-                    clusterSameTypeNodes();
+                    clusterByObservation();
                     
                     // Update stats
                     updateStats();
@@ -1481,7 +1481,7 @@
                 updateStats();
                 
                 // Recluster nodes to ensure they stay together even when relationships are hidden
-                clusterSameTypeNodes();
+                clusterByObservation();
             }
 
             function updateNodeVisibility() {
@@ -1543,7 +1543,7 @@
             }
 
             // Add clustering by node type after nodes are added
-            function clusterSameTypeNodes() {
+            function clusterByObservation() {
                 // Only skip clustering during specific operations that would conflict
                 const isResettingView = document.activeElement && document.activeElement.id === 'resetView';
                 
@@ -1577,6 +1577,41 @@
                     }
                 });
             }
+
+            function clusterByObservation() {
+                // Clear previous clustering relationships
+                relationships.get().forEach(r => {
+                    if (r.label === 'clustering_relationship') {
+                        relationships.remove(r.id);
+                    }
+                });
+
+                // For each observation node, find its connected nodes and create invisible edges
+                nodes.get().forEach(observationNode => {
+                    if (observationNode.group !== 'observation_of_identity') return;
+
+                    // Find nodes directly connected to this observation
+                    relationships.get().forEach(rel => {
+                        if (rel.from === observationNode.id || rel.to === observationNode.id) {
+                            const otherNodeId = (rel.from === observationNode.id) ? rel.to : rel.from;
+
+                            // Avoid reconnecting to other observations or sources
+                            const otherNode = nodes.get(otherNodeId);
+                            if (!otherNode || otherNode.group === 'observation_of_identity' || otherNode.group === 'source') return;
+
+                            // Create invisible edge from observation to connected node
+                            createInvisibleRelationship(observationNode.id, otherNodeId, {
+                                hidden: true,
+                                physics: false,
+                                width: 0,
+                                label: 'clustering_relationship'
+                            });
+                        }
+                    });
+                });
+            }
+
+
 
             // Function to format tooltips for observation_of_identity nodes
             function formatObservationTooltip(properties) {
